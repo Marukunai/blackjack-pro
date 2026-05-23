@@ -1,0 +1,3 @@
+pygame>=2.5.0
+pygame-ce>=2.4.0; platform_system != "Windows"
+numpy>=1.26.0
