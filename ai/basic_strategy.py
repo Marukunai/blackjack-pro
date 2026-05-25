@@ -33,6 +33,17 @@ class BasicAction(Enum):
 
 UPCARD_INDEX = {2: 0, 3: 1, 4: 2, 5: 3, 6: 4, 7: 5, 8: 6, 9: 7, 10: 8, 11: 9}
 
+# Aliases para las tablas (deben estar antes de los dicts)
+H  = BasicAction.H
+S  = BasicAction.S
+D  = BasicAction.D
+DS = BasicAction.DS
+P  = BasicAction.P
+PH = BasicAction.PH
+R  = BasicAction.R
+RS = BasicAction.RS
+RP = BasicAction.RP
+
 # --- HARD TOTALS (8..17+) ---
 # Columnas: crupier 2,3,4,5,6,7,8,9,10,A
 HARD: dict[int, list[BasicAction]] = {
@@ -85,17 +96,6 @@ PAIRS: dict[str, list[BasicAction]] = {
     "Q":  [S,  S,  S,  S,  S,  S,  S,  S,  S,  S ],
     "K":  [S,  S,  S,  S,  S,  S,  S,  S,  S,  S ],
 }
-
-H  = BasicAction.H
-S  = BasicAction.S
-D  = BasicAction.D
-DS = BasicAction.DS
-P  = BasicAction.P
-PH = BasicAction.PH
-R  = BasicAction.R
-RS = BasicAction.RS
-RP = BasicAction.RP
-
 
 def get_basic_strategy(hand: "Hand", dealer_upcard_value: int, rules: "Rules") -> BasicAction:
     """
