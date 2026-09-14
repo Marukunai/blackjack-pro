@@ -360,7 +360,7 @@ def main():
     engine.on("on_round_end", _on_round_end)
 
     # Registrar todas las cartas visibles en el contador Hi-Lo
-    def _on_card(card, target, idx):
+    def _on_card(card, target, idx, player_idx=None):
         _counter.register_card(card)
     engine.on("on_card_dealt", _on_card)
 

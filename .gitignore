@@ -6,6 +6,7 @@ __pycache__/
 .Python
 *.egg-info/
 dist/
+dist_installer/
 build/
 .eggs/
 
@@ -17,6 +18,10 @@ ENV/
 
 # Saves / datos de usuario
 saves/*.json
+saves/*.db
+saves/*.db-journal
+saves/*.db-wal
+saves/*.db-shm
 
 # IDE
 .vscode/settings.json

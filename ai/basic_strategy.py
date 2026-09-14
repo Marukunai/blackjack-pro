@@ -161,6 +161,33 @@ def _resolve_action(action: BasicAction, hand: "Hand", rules: "Rules") -> BasicA
 
 
 # ------------------------------------------------------------------
+# Fase 19 — modo entrenamiento: reduce cualquier BasicAction (incluidas
+# las formas compuestas "X si no Y") a la acción de juego real que
+# corresponde tomar, dado que _resolve_action ya ha comprobado que esa
+# opción está disponible con la mano/reglas actuales.
+# ------------------------------------------------------------------
+_ACTION_TO_PLAY: dict[BasicAction, str] = {
+    BasicAction.H:  "hit",
+    BasicAction.S:  "stand",
+    BasicAction.D:  "double",
+    BasicAction.DS: "double",
+    BasicAction.P:  "split",
+    BasicAction.PH: "split",
+    BasicAction.R:  "surrender",
+    BasicAction.RS: "surrender",
+    BasicAction.RP: "surrender",
+}
+
+
+def recommended_play(hand: "Hand", dealer_upcard_value: int, rules: "Rules") -> str:
+    """Como get_basic_strategy(), pero devuelve directamente la acción de
+    juego ('hit'/'stand'/'double'/'split'/'surrender') que GameEngine
+    espera, ya resuelta a una opción realmente disponible."""
+    action = get_basic_strategy(hand, dealer_upcard_value, rules)
+    return _ACTION_TO_PLAY.get(action, "hit")
+
+
+# ------------------------------------------------------------------
 # Clasificación por color para la UI (hint display)
 # ------------------------------------------------------------------
 ACTION_COLOR: dict[BasicAction, str] = {

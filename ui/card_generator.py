@@ -12,6 +12,7 @@ from typing import Optional
 import pygame
 
 from config import settings as cfg
+from ui import icons
 
 
 # ── Paleta de la carta ────────────────────────────────────────────────
@@ -20,16 +21,13 @@ CARD_BORDER     = (180, 160, 120)   # dorado apagado
 CARD_SHADOW     = (30,  30,  30,  80)
 RED_SUIT        = (196, 30,  30)
 BLACK_SUIT      = (15,  15,  15)
-BACK_DARK       = (10,  60,  30)    # verde oscuro casino
-BACK_LIGHT      = (20,  100, 50)
-BACK_PATTERN    = (255, 215, 0,  40)  # dorado semitransparente
+# El color del reverso NO se lee de aquí -- ver cfg.CARD_BACK_DARK/
+# CARD_BACK_LIGHT/CARD_BACK_PATTERN (config/settings.py), que es lo que
+# permite cambiar de tema en caliente desde ui/settings_screen.py (Fase 15).
 
-# ── Símbolos unicode de palos ─────────────────────────────────────────
-SUIT_SYMBOL = {"♠": "♠", "♥": "♥", "♦": "♦", "♣": "♣"}
-SUIT_COLOR  = {
-    "♠": BLACK_SUIT, "♣": BLACK_SUIT,
-    "♥": RED_SUIT,   "♦": RED_SUIT,
-}
+# Los palos ya no se renderizan con glifos Unicode (♠♥♦♣): se dibujan
+# vectorialmente con ui.icons.draw_suit, así no dependen de qué fuentes
+# tenga instaladas el sistema (ver _draw_card / _draw_pips más abajo).
 
 # ── Posiciones de los símbolos en el interior (grid 3×7) ─────────────
 # Cada tupla es (x_frac, y_frac) del área interior de la carta
@@ -66,8 +64,6 @@ class CardGenerator:
         self._back: Optional[pygame.Surface] = None
         self._font_rank_large: Optional[pygame.font.Font] = None
         self._font_rank_small: Optional[pygame.font.Font] = None
-        self._font_suit_large: Optional[pygame.font.Font] = None
-        self._font_suit_small: Optional[pygame.font.Font] = None
         self._font_face:       Optional[pygame.font.Font] = None
 
     # ------------------------------------------------------------------
@@ -88,6 +84,13 @@ class CardGenerator:
     def get_hidden(self) -> pygame.Surface:
         return self.get_back()
 
+    def invalidate_back(self) -> None:
+        """Fuerza a regenerar el reverso en la próxima llamada a get_back()
+        -- se usa al cambiar de tema de cartas en caliente desde el menú
+        (ver ui/settings_screen.py), ya que el reverso se cachea tras la
+        primera vez que se dibuja."""
+        self._back = None
+
     # ------------------------------------------------------------------
     # Carga o generación
     # ------------------------------------------------------------------
@@ -105,28 +108,19 @@ class CardGenerator:
     def _init_fonts(self) -> None:
         if self._font_rank_large:
             return
-        # Intentar fuente del sistema con soporte unicode
-        candidates = ["segoeuisymbol", "dejavusans", "freesans", "arial", None]
-        font_path = None
-        for name in candidates:
-            try:
-                f = pygame.font.SysFont(name, 10)
-                font_path = name
-                break
-            except Exception:
-                continue
-
+        # Los rangos (A, K, Q, J, 10, 2-9) son letras/dígitos normales:
+        # cualquier fuente del sistema los renderiza bien, no hace falta
+        # perseguir una fuente con soporte de símbolos para esto. Los
+        # PALOS ya no se renderizan como texto (ver ui/icons.draw_suit) —
+        # se dibujan vectorialmente para no depender de qué fuentes tenga
+        # instaladas el sistema.
         sz_large = max(10, int(self.h * 0.18))
         sz_small = max(8,  int(self.h * 0.12))
-        sz_suit  = max(12, int(self.h * 0.22))
         sz_face  = max(16, int(self.h * 0.38))
-        sz_pip   = max(10, int(self.h * 0.13))
 
-        self._font_rank_large = pygame.font.SysFont(font_path, sz_large, bold=True)
-        self._font_rank_small = pygame.font.SysFont(font_path, sz_small, bold=True)
-        self._font_suit_large = pygame.font.SysFont(font_path, sz_suit)
-        self._font_suit_small = pygame.font.SysFont(font_path, sz_pip)
-        self._font_face       = pygame.font.SysFont(font_path, sz_face, bold=True)
+        self._font_rank_large = pygame.font.SysFont(None, sz_large, bold=True)
+        self._font_rank_small = pygame.font.SysFont(None, sz_small, bold=True)
+        self._font_face       = pygame.font.SysFont(None, sz_face, bold=True)
 
     # ------------------------------------------------------------------
     # Dibujo de carta
@@ -142,9 +136,7 @@ class CardGenerator:
         else:
             rank, suit_letter = key[0], key[1:]
 
-        suit_map = {"S": "♠", "H": "♥", "D": "♦", "C": "♣"}
-        suit = suit_map.get(suit_letter, "♠")
-        color = SUIT_COLOR.get(suit, BLACK_SUIT)
+        color = icons.suit_color(suit_letter, RED_SUIT, BLACK_SUIT)
 
         r = cfg.CARD_RADIUS
         w, h = self.w, self.h
@@ -160,49 +152,46 @@ class CardGenerator:
         # Borde dorado
         self._rounded_rect_border(surf, CARD_BORDER, pygame.Rect(0, 0, w, h), r, 1)
 
-        # Rango esquina superior-izquierda
+        # Rango esquina superior-izquierda + palo (vectorial) debajo
         pad = max(3, int(w * 0.07))
         rank_surf = self._font_rank_large.render(rank, True, color)
         surf.blit(rank_surf, (pad, pad))
 
-        # Palo bajo el rango
-        suit_surf = self._font_suit_small.render(suit, True, color)
-        surf.blit(suit_surf, (pad, pad + rank_surf.get_height()))
+        pip_size = max(8, int(self.h * 0.10))
+        corner_suit_cy = pad + rank_surf.get_height() + pip_size * 0.55
+        icons.draw_suit(surf, suit_letter, pad + pip_size * 0.45, corner_suit_cy, pip_size, color)
 
         # Esquina inferior-derecha (girado 180°)
         rank_r = pygame.transform.rotate(rank_surf, 180)
-        suit_r = pygame.transform.rotate(suit_surf, 180)
-        surf.blit(rank_r, (w - rank_r.get_width() - pad, h - rank_r.get_height() - suit_r.get_height() - pad))
-        surf.blit(suit_r, (w - suit_r.get_width() - pad, h - suit_r.get_height() - pad))
+        surf.blit(rank_r, (w - rank_r.get_width() - pad,
+                            h - rank_r.get_height() - pip_size - pad))
+        icons.draw_suit(surf, suit_letter,
+                         w - pad - pip_size * 0.45, h - pad - pip_size * 0.55,
+                         pip_size, color)
 
         # Contenido central
         if rank in ("J", "Q", "K", "A"):
-            self._draw_face_center(surf, rank, suit, color)
+            self._draw_face_center(surf, rank, suit_letter, color)
         else:
-            self._draw_pips(surf, int(rank), suit, color)
+            self._draw_pips(surf, int(rank), suit_letter, color)
 
         return surf
 
-    def _draw_pips(self, surf: pygame.Surface, count: int, suit: str, color: tuple) -> None:
+    def _draw_pips(self, surf: pygame.Surface, count: int, suit_letter: str, color: tuple) -> None:
         """Dibuja los símbolos numéricos en su posición de cuadrícula."""
         positions = PIP_LAYOUT.get(count, [])
         pad_x = int(self.w * 0.15)
         pad_y = int(self.h * 0.18)
         area_w = self.w - 2 * pad_x
         area_h = self.h - 2 * pad_y
+        pip_size = max(9, int(self.h * 0.15))
 
         for (fx, fy) in positions:
             x = int(pad_x + fx * area_w)
             y = int(pad_y + fy * area_h)
-            sym = self._font_suit_small.render(suit, True, color)
-            # Los pips de la mitad inferior se invierten
-            if fy > 0.5:
-                sym = pygame.transform.rotate(sym, 180)
-            sx = x - sym.get_width() // 2
-            sy = y - sym.get_height() // 2
-            surf.blit(sym, (sx, sy))
+            icons.draw_suit(surf, suit_letter, x, y, pip_size, color)
 
-    def _draw_face_center(self, surf: pygame.Surface, rank: str, suit: str, color: tuple) -> None:
+    def _draw_face_center(self, surf: pygame.Surface, rank: str, suit_letter: str, color: tuple) -> None:
         """Dibuja la letra central grande para J/Q/K/A."""
         # Marco decorativo interior
         inner = pygame.Rect(
@@ -218,10 +207,9 @@ class CardGenerator:
         surf.blit(letter, (cx, cy))
 
         # Palo grande centrado bajo la letra
-        big_suit = self._font_suit_large.render(suit, True, (*color, 160))
-        sx = (self.w - big_suit.get_width()) // 2
-        sy = cy + letter.get_height() - int(self.h * 0.04)
-        surf.blit(big_suit, (sx, sy))
+        big_suit_size = int(self.h * 0.22)
+        sy = cy + letter.get_height() - int(self.h * 0.04) + big_suit_size // 2
+        icons.draw_suit(surf, suit_letter, self.w // 2, sy, big_suit_size, (*color, 160))
 
     # ------------------------------------------------------------------
     # Reverso de la carta
@@ -237,8 +225,8 @@ class CardGenerator:
         self._rounded_rect(shadow, (0, 0, 0, 60), pygame.Rect(2, 3, w-2, h-2), r)
         surf.blit(shadow, (0, 0))
 
-        # Fondo verde oscuro
-        self._rounded_rect(surf, BACK_DARK, pygame.Rect(0, 0, w, h), r)
+        # Fondo del reverso (color del tema activo)
+        self._rounded_rect(surf, cfg.CARD_BACK_DARK, pygame.Rect(0, 0, w, h), r)
 
         # Patrón de rombos
         self._draw_back_pattern(surf)
@@ -256,7 +244,7 @@ class CardGenerator:
         """Patrón de rombos diagonales estilo casino."""
         w, h = self.w, self.h
         step = max(6, int(w * 0.18))
-        col = (255, 215, 0, 35)
+        col = cfg.CARD_BACK_PATTERN
         pat = pygame.Surface((w, h), pygame.SRCALPHA)
         for x in range(-h, w + h, step):
             pts = [(x, 0), (x + step//2, h//2), (x, h), (x - step//2, h//2)]

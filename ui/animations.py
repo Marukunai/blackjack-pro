@@ -8,6 +8,8 @@ import random
 import pygame
 from typing import Optional
 
+from ui import icons
+
 
 class Particle:
     def __init__(self, x: float, y: float, color: tuple,
@@ -116,6 +118,122 @@ class GlowEffect:
             border_radius=r + 8,
         )
         surf.blit(glow_surf, (rect.x - r, rect.y - r))
+
+
+class ShuffleEffect:
+    """Breve animación de barajado del zapato: varias cartas boca abajo se
+    abren en abanico y vuelven a recogerse, cerca de donde se muestra el
+    estado del zapato — un acompañamiento visual al sonido de barajado."""
+
+    DURATION = 70
+
+    def __init__(self, cx: int, cy: int, back_surface: pygame.Surface, count: int = 7):
+        self.cx, self.cy = cx, cy
+        self.back  = back_surface
+        self.timer = self.DURATION
+        self.n     = count
+
+    def update(self) -> bool:
+        self.timer -= 1
+        return self.timer > 0
+
+    def draw(self, surf: pygame.Surface) -> None:
+        t = 1.0 - self.timer / self.DURATION
+        # 0 → abanico cerrado, 0.5 → abierto del todo, 1 → cerrado de nuevo
+        spread = math.sin(math.pi * t)
+        fade_in  = min(1.0, (self.DURATION - self.timer) / 8)
+        fade_out = min(1.0, self.timer / 8)
+        alpha = int(255 * min(fade_in, fade_out))
+        if alpha <= 0:
+            return
+
+        for i in range(self.n):
+            frac = (i - (self.n - 1) / 2) / max(1, (self.n - 1) / 2)
+            angle = frac * 38 * spread
+            offset = frac * 34 * spread
+            card = pygame.transform.rotate(self.back, angle)
+            card.set_alpha(alpha)
+            rect = card.get_rect(center=(self.cx + offset, self.cy - abs(offset) * 0.12))
+            surf.blit(card, rect)
+
+
+class AchievementToast:
+    """Aviso de logro desbloqueado: una tarjeta que se desliza desde
+    arriba, se mantiene visible unos segundos y se retira. La cola de
+    varios logros a la vez la gestiona el Renderer (uno detrás de otro,
+    no todos superpuestos)."""
+
+    SLIDE_IN  = 18
+    HOLD      = 150
+    SLIDE_OUT = 18
+    W, H = 340, 78
+
+    def __init__(self, name: str, description: str, icon_shape: str, icon_color: tuple,
+                 player_name: Optional[str] = None):
+        self.name = name
+        self.description = description
+        self.icon_shape = icon_shape
+        self.icon_color = icon_color
+        # Solo se rellena en partidas multijugador, para dejar claro de
+        # quién es el logro — en solitario no hace falta (es obvio).
+        self.player_name = player_name
+        self._t = 0
+        self._total = self.SLIDE_IN + self.HOLD + self.SLIDE_OUT
+        self._font_title: Optional[pygame.font.Font] = None
+        self._font_desc: Optional[pygame.font.Font] = None
+
+    def _ensure_fonts(self) -> None:
+        if self._font_title is None:
+            self._font_title = pygame.font.SysFont(None, 22, bold=True)
+            self._font_desc  = pygame.font.SysFont(None, 17)
+
+    def update(self) -> bool:
+        self._t += 1
+        return self._t < self._total
+
+    def _y_offset(self, cy: int) -> float:
+        if self._t < self.SLIDE_IN:
+            frac = self._t / self.SLIDE_IN
+            return -self.H * (1.0 - (frac * frac * (3 - 2 * frac)))   # ease-out
+        if self._t > self.SLIDE_IN + self.HOLD:
+            frac = (self._t - self.SLIDE_IN - self.HOLD) / self.SLIDE_OUT
+            return -self.H * (frac * frac)
+        return 0.0
+
+    def draw(self, surf: pygame.Surface, top_y: int = 16) -> None:
+        self._ensure_fonts()
+        sw = surf.get_width()
+        x = sw // 2 - self.W // 2
+        y = top_y + int(self._y_offset(top_y))
+
+        card = pygame.Surface((self.W, self.H), pygame.SRCALPHA)
+        pygame.draw.rect(card, (12, 10, 4, 235), card.get_rect(), border_radius=12)
+        pygame.draw.rect(card, (212, 175, 55), card.get_rect(), 2, border_radius=12)
+
+        # Icono en un círculo dorado a la izquierda
+        icon_r = 22
+        icon_cx, icon_cy = 16 + icon_r, self.H // 2
+        bg = tuple(max(0, c - 165) for c in self.icon_color)
+        pygame.draw.circle(card, bg, (icon_cx, icon_cy), icon_r)
+        pygame.draw.circle(card, self.icon_color, (icon_cx, icon_cy), icon_r, 2)
+        if self.icon_shape == "star":
+            icons.star(card, icon_cx, icon_cy, icon_r * 0.55, self.icon_color)
+        elif self.icon_shape == "coin":
+            f = pygame.font.SysFont(None, int(icon_r * 1.3), bold=True)
+            icons.coin(card, icon_cx, icon_cy, icon_r * 0.6, self.icon_color, (20, 20, 20), f)
+        else:
+            icons.draw_suit(card, self.icon_shape, icon_cx, icon_cy, icon_r * 1.1, self.icon_color)
+
+        tag_text = "LOGRO DESBLOQUEADO" if not self.player_name else f"LOGRO DE {self.player_name.upper()}"
+        tag = self._font_desc.render(tag_text, True, (212, 175, 55))
+        title = self._font_title.render(self.name, True, (255, 255, 255))
+        desc = self._font_desc.render(self.description, True, (190, 190, 190))
+        tx = 16 + icon_r * 2 + 12
+        card.blit(tag, (tx, 12))
+        card.blit(title, (tx, 12 + tag.get_height() + 1))
+        card.blit(desc, (tx, 12 + tag.get_height() + title.get_height() + 3))
+
+        surf.blit(card, (x, y))
 
 
 class ResultBanner:

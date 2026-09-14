@@ -72,6 +72,11 @@ class Rules:
     five_card_charlie: bool = False    # 5 cartas sin pasarse = win automático (regla opcional)
     original_bets_only: bool = False   # OBBO: en caso de BJ del crupier, se pierde solo la apuesta original
 
+    # --- Apuestas laterales (side bets) ---
+    perfect_pairs_allowed: bool = False        # Parejas Perfectas (2 cartas del jugador)
+    twentyone_plus_three_allowed: bool = False # 21+3 (2 del jugador + carta visible del crupier)
+    side_bet_max: float = 100.0                # tope propio, independiente de max_bet
+
     # ------------------------------------------------------------------
     # Helpers de cálculo de pago
     # ------------------------------------------------------------------

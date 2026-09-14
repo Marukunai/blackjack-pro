@@ -26,6 +26,11 @@ class Player:
         # Apuesta de seguro (side bet)
         self.insurance_bet: float = 0.0
 
+        # Apuestas laterales opcionales, colocadas junto a la apuesta
+        # principal y resueltas justo después del reparto inicial.
+        self.perfect_pairs_bet: float = 0.0
+        self.twentyone_plus_three_bet: float = 0.0
+
         # Estadísticas de sesión
         self.stats = SessionStats()
 
@@ -37,6 +42,8 @@ class Player:
         self.hands.clear()
         self.active_hand_index = 0
         self.insurance_bet = 0.0
+        self.perfect_pairs_bet = 0.0
+        self.twentyone_plus_three_bet = 0.0
         hand = Hand(bet=bet)
         self.hands.append(hand)
         return hand
@@ -83,6 +90,17 @@ class Player:
         self.insurance_bet = amount
 
     # ------------------------------------------------------------------
+    # Apuestas laterales
+    # ------------------------------------------------------------------
+    def place_side_bets(self, perfect_pairs: float = 0.0, twentyone_plus_three: float = 0.0) -> None:
+        total = perfect_pairs + twentyone_plus_three
+        if total > self.chips:
+            raise ValueError("No tienes fichas para las apuestas laterales.")
+        self.chips -= total
+        self.perfect_pairs_bet = perfect_pairs
+        self.twentyone_plus_three_bet = twentyone_plus_three
+
+    # ------------------------------------------------------------------
     # Repr
     # ------------------------------------------------------------------
     def __str__(self) -> str:
@@ -113,6 +131,7 @@ class SessionStats:
         self.current_streak: int = 0    # + ganando, - perdiendo
         self.best_streak: int = 0
         self.worst_streak: int = 0
+        self.hands_split: int = 0       # nº de veces que se ha usado split
 
     @property
     def win_rate(self) -> float:

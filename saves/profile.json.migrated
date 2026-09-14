@@ -1,0 +1,17 @@
+{
+  "name": "Player 1",
+  "chips": 0.0,
+  "hands_played": 43,
+  "hands_won": 15,
+  "hands_lost": 24,
+  "hands_push": 4,
+  "hands_surrendered": 0,
+  "blackjacks": 1,
+  "busts": 6,
+  "total_wagered": 6545.0,
+  "net_profit": -2160.0,
+  "peak_chips": 1260.0,
+  "lowest_chips": 0.0,
+  "best_streak": 2,
+  "worst_streak": -5
+}
