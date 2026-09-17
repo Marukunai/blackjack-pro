@@ -379,6 +379,20 @@ class Renderer:
         self._training_feedback: Optional[tuple] = None   # (text, color, frames_left)
 
         self._engine.start_game()
+
+        # Bug real reportado por Maruku: un Desafío define sus propias
+        # fichas iniciales (challenge.starting_chips) precisamente porque
+        # su dificultad depende de ellas ("Superviviente" solo tiene
+        # sentido empezando corto de dinero, con $300) -- pero
+        # GameEngine.start_game() acaba de cargar el saldo REAL que el
+        # perfil tuviera guardado de la última partida normal (lo
+        # correcto para una partida normal, donde el saldo debe
+        # continuar de una sesión a otra). Se sobreescribe aquí, después
+        # de cargar el perfil, para que un Desafío siempre arranque con
+        # exactamente las fichas que anuncia -- nunca con el saldo real.
+        if challenge is not None:
+            self._engine.player.chips = challenge.starting_chips
+
         self._state = self._BETTING
 
     # ──────────────────────────────────────────────────────────────────
