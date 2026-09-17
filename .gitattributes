@@ -1,0 +1,9 @@
+# Normaliza los saltos de línea de todo el código fuente a LF en el
+# repositorio, sin importar si se edita en Windows (CRLF) o Linux/Mac (LF) --
+# evita que git marque archivos como "modificados" solo por diferencias de
+# salto de línea sin cambio real de contenido.
+* text=auto eol=lf
+
+*.ico binary
+*.png binary
+*.db binary

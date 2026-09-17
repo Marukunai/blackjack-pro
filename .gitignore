@@ -18,6 +18,7 @@ ENV/
 
 # Saves / datos de usuario
 saves/*.json
+saves/*.json.migrated
 saves/*.db
 saves/*.db-journal
 saves/*.db-wal
