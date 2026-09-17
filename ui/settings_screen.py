@@ -24,6 +24,12 @@ _SWATCH_GAP = 20
 _TRACK_W, _TRACK_H = 260, 6
 _KNOB_R = 8
 
+# Fase 27: 5 idiomas (antes solo ES/EN) -- fila de píldoras compactas en
+# vez del par de botones de la Fase 26, mismo patrón visual e interacción.
+_LANGS = ("es", "en", "fr", "pt", "de")
+_LANG_BTN_W, _LANG_BTN_H = 46, 30
+_LANG_BTN_GAP = 6
+
 
 class SettingsScreen:
     """Pantalla de solo-preferencias: sin "Guardar"/"Cancelar" -- cada
@@ -74,19 +80,21 @@ class SettingsScreen:
         self._sfx_mute_hover = False
         self._layout_audio()
 
-        # ---- Idioma (Fase 26) ----
-        # Un simple par de botones ES/EN en la esquina superior derecha
-        # (no un swatch grid como mesa/cartas -- solo hay 2 opciones) que
-        # cambian cfg.LANGUAGE al instante y se persisten igual que el
-        # resto de ajustes. Al ser un valor "en vivo" leído por i18n.t()
-        # en cada frame, el resto de esta misma pantalla (y de cualquier
-        # otra) ya sale traducida sin más que redibujar.
-        self._lang = cfg.LANGUAGE if cfg.LANGUAGE in ("es", "en") else "es"
-        lang_w, lang_h = 64, 30
-        self._lang_es_rect = pygame.Rect(self.sw - 158, 22, lang_w, lang_h)
-        self._lang_en_rect = pygame.Rect(self.sw - 88, 22, lang_w, lang_h)
-        self._lang_es_hover = False
-        self._lang_en_hover = False
+        # ---- Idioma (Fase 26, ampliado a 5 idiomas en la Fase 27) ----
+        # Una fila de píldoras compactas en la esquina superior derecha
+        # (no un swatch grid como mesa/cartas) que cambian cfg.LANGUAGE al
+        # instante y se persisten igual que el resto de ajustes. Al ser un
+        # valor "en vivo" leído por i18n.t() en cada frame, el resto de
+        # esta misma pantalla (y de cualquier otra) ya sale traducida sin
+        # más que redibujar.
+        self._lang = cfg.LANGUAGE if cfg.LANGUAGE in _LANGS else "es"
+        total_w = len(_LANGS) * _LANG_BTN_W + (len(_LANGS) - 1) * _LANG_BTN_GAP
+        x0 = self.sw - 20 - total_w
+        self._lang_rects: dict[str, pygame.Rect] = {}
+        for i, lang in enumerate(_LANGS):
+            x = x0 + i * (_LANG_BTN_W + _LANG_BTN_GAP)
+            self._lang_rects[lang] = pygame.Rect(x, 22, _LANG_BTN_W, _LANG_BTN_H)
+        self._lang_hover: dict[str, bool] = {lang: False for lang in _LANGS}
 
     # ------------------------------------------------------------------
     def _layout(self) -> None:
@@ -142,8 +150,8 @@ class SettingsScreen:
             self._back_hover = self._back_rect.collidepoint(event.pos)
             self._music_mute_hover = self._music_mute_rect.collidepoint(event.pos)
             self._sfx_mute_hover = self._sfx_mute_rect.collidepoint(event.pos)
-            self._lang_es_hover = self._lang_es_rect.collidepoint(event.pos)
-            self._lang_en_hover = self._lang_en_rect.collidepoint(event.pos)
+            for lang, r in self._lang_rects.items():
+                self._lang_hover[lang] = r.collidepoint(event.pos)
             if self._dragging == "music":
                 self._set_music_volume(self._value_from_x(self._music_track, event.pos[0]))
             elif self._dragging == "sfx":
@@ -159,12 +167,10 @@ class SettingsScreen:
             if self._back_rect.collidepoint(event.pos):
                 self._done = True
                 return
-            if self._lang_es_rect.collidepoint(event.pos):
-                self._choose_language("es")
-                return
-            if self._lang_en_rect.collidepoint(event.pos):
-                self._choose_language("en")
-                return
+            for lang, r in self._lang_rects.items():
+                if r.collidepoint(event.pos):
+                    self._choose_language(lang)
+                    return
             for name, r in self._table_rects:
                 if r.collidepoint(event.pos):
                     self._choose_table_theme(name)
@@ -197,7 +203,7 @@ class SettingsScreen:
             self.app_settings.set("card_back_theme", name)
 
     def _choose_language(self, lang: str) -> None:
-        if lang not in ("es", "en") or lang == self._lang:
+        if lang not in _LANGS or lang == self._lang:
             return
         self._lang = lang
         cfg.LANGUAGE = lang
@@ -270,13 +276,14 @@ class SettingsScreen:
         self._draw_back(surf)
 
     def _draw_language_toggle(self, surf: pygame.Surface) -> None:
+        first_rect = self._lang_rects[_LANGS[0]]
         lbl = self._font_small.render(i18n.t("settings.language_section"), True, (140, 140, 140))
-        surf.blit(lbl, (self._lang_es_rect.x - lbl.get_width() - 10,
-                         self._lang_es_rect.centery - lbl.get_height() // 2))
-        for lang, rect, hover, text in (
-            ("es", self._lang_es_rect, self._lang_es_hover, "ES"),
-            ("en", self._lang_en_rect, self._lang_en_hover, "EN"),
-        ):
+        surf.blit(lbl, (first_rect.x - lbl.get_width() - 10,
+                         first_rect.centery - lbl.get_height() // 2))
+        for lang in _LANGS:
+            rect = self._lang_rects[lang]
+            hover = self._lang_hover[lang]
+            text = lang.upper()
             active = (lang == self._lang)
             if active:
                 bg, border, col = (60, 45, 10), cfg.COLOR_GOLD, cfg.COLOR_GOLD
