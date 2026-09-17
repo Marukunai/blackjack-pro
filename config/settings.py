@@ -30,7 +30,7 @@ FULLSCREEN    = False
 # Versión mostrada en el menú principal y usada por installer.iss (Fase 25:
 # hay que mantener ambas en sincronía a mano -- installer.iss no puede leer
 # este archivo Python durante la compilación de Inno Setup).
-APP_VERSION   = "1.2.0"
+APP_VERSION   = "1.3.0"
 
 # ------------------------------------------------------------------
 # Audio
