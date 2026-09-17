@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from typing import Callable, Optional
 
+from config import i18n
 from core.card import Card
 from core.deck import Deck
 from core.dealer import Dealer
@@ -199,7 +200,7 @@ class GameEngine:
         if self.state != GameState.BETTING:
             return False
         if not (self.rules.min_bet <= amount <= self.rules.max_bet):
-            self._emit("on_message", f"Apuesta inválida. Min={self.rules.min_bet}, Max={self.rules.max_bet}")
+            self._emit("on_message", i18n.t("engine.invalid_bet", min=self.rules.min_bet, max=self.rules.max_bet))
             return False
 
         if not self.rules.perfect_pairs_allowed:
@@ -208,12 +209,12 @@ class GameEngine:
             twentyone_plus_three = 0.0
         for side_amount in (perfect_pairs, twentyone_plus_three):
             if side_amount and not (0 < side_amount <= self.rules.side_bet_max):
-                self._emit("on_message", f"Apuesta lateral inválida. Max={self.rules.side_bet_max}")
+                self._emit("on_message", i18n.t("engine.invalid_side_bet", max=self.rules.side_bet_max))
                 return False
 
         total = amount + perfect_pairs + twentyone_plus_three
         if not self.player.can_afford(total):
-            self._emit("on_message", "No tienes suficientes fichas.")
+            self._emit("on_message", i18n.t("engine.not_enough_chips"))
             return False
 
         self.player.place_bet(amount)
@@ -240,7 +241,7 @@ class GameEngine:
         valid = available_actions(hand, self.player, self.dealer, self.rules, is_first)
 
         if action not in valid:
-            self._emit("on_message", f"Acción '{action}' no disponible ahora.")
+            self._emit("on_message", i18n.t("engine.action_unavailable", action=action))
             return ActionResult.INVALID
 
         result = ActionResult.INVALID
@@ -321,7 +322,7 @@ class GameEngine:
                 # Even money: cobrar 1:1 inmediatamente y terminar la mano
                 player.receive(hand.bet * 2)
                 hand.stood = True
-                self._emit("on_message", f"{player.name}: Even Money cobrado.")
+                self._emit("on_message", i18n.t("engine.even_money_paid", name=player.name))
             else:
                 # Seguro estándar
                 max_ins = player.active_hand.bet / 2 if player.active_hand else 0
@@ -384,7 +385,7 @@ class GameEngine:
                 player.chips = self.rules.starting_chips
             else:
                 self._transition(GameState.GAME_OVER)
-                self._emit("on_message", "¡Te has quedado sin fichas! Partida terminada.")
+                self._emit("on_message", i18n.t("engine.out_of_chips"))
                 return
 
         self.active_player_index = i
@@ -489,7 +490,7 @@ class GameEngine:
         directamente; si no, empieza el turno de juego."""
         if self.dealer.has_blackjack:
             self.dealer.reveal_hole_card()
-            self._emit("on_message", "¡El crupier tiene Blackjack!")
+            self._emit("on_message", i18n.t("engine.dealer_has_blackjack"))
             self._end_round()
         else:
             self._begin_player_turns()
@@ -619,7 +620,7 @@ class GameEngine:
         # ¿Rebarajar?
         if self.deck.penetration_reached:
             self.deck.shuffle()
-            self._emit("on_message", "Rebarajando el zapato...")
+            self._emit("on_message", i18n.t("engine.reshuffling"))
 
         self._begin_betting_round()
 

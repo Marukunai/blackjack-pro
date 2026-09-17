@@ -19,12 +19,14 @@ import pygame
 from typing import Optional
 
 from config import settings as cfg
+from config import i18n
 from config.rules_presets import get_preset
 from core.rules import Rules
 
 from engine.game_engine import GameEngine
 from engine.game_state import GameState, ActionResult, RoundResult
 from engine.payout import HandPayout
+from engine.challenges import Challenge
 
 from ai.card_counter import HiLoCounter
 from ai.basic_strategy import recommended_play
@@ -52,14 +54,23 @@ RESULT_COLORS = {
     RoundResult.PUSH:         cfg.COLOR_PUSH,
     RoundResult.SURRENDER:    cfg.COLOR_PUSH,
 }
-RESULT_LABELS = {
-    RoundResult.WIN:           "GANASTE",
-    RoundResult.BLACKJACK_WIN: "BLACKJACK!",
-    RoundResult.DEALER_BUST:   "CRUPIER SE PASÓ",
-    RoundResult.LOSS:          "PERDISTE",
-    RoundResult.PUSH:          "EMPATE",
-    RoundResult.SURRENDER:     "RENDICIÓN",
+_RESULT_LABEL_KEYS = {
+    RoundResult.WIN:           "renderer.result_win",
+    RoundResult.BLACKJACK_WIN: "renderer.result_blackjack",
+    RoundResult.DEALER_BUST:   "renderer.result_dealer_bust",
+    RoundResult.LOSS:          "renderer.result_loss",
+    RoundResult.PUSH:          "renderer.result_push",
+    RoundResult.SURRENDER:     "renderer.result_surrender",
 }
+
+
+def _result_label(result) -> str:
+    """Traducción en vivo del resultado de una mano (Fase 26) -- antes
+    era un dict estático RESULT_LABELS construido una vez al importar el
+    módulo; ahora se resuelve en cada llamada para reflejar el idioma
+    activo en ese momento."""
+    key = _RESULT_LABEL_KEYS.get(result)
+    return i18n.t(key) if key else result.name
 
 
 class Renderer:
@@ -80,6 +91,7 @@ class Renderer:
     _DEALER    = "dealer"     # turno automático del crupier (animado, sin botones)
     _RESULT    = "result"
     _GAMEOVER  = "gameover"
+    _CHALLENGE_END = "challenge_end"   # Fase 25: fin de un Desafío (ganado o perdido)
 
     def __init__(self) -> None:
         # El mixer debe inicializarse con un formato conocido ANTES de
@@ -109,6 +121,13 @@ class Renderer:
         app_settings = get_settings()
         cfg.apply_table_theme(app_settings.get("table_theme", cfg.DEFAULT_TABLE_THEME))
         cfg.apply_card_back_theme(app_settings.get("card_back_theme", cfg.DEFAULT_CARD_BACK_THEME))
+
+        # Idioma guardado (Fase 26): igual que el tema, se aplica ANTES de
+        # construir cualquier pantalla para que todo salga ya en el idioma
+        # elegido la última vez, sin esperar a pasar por Ajustes.
+        saved_language = app_settings.get("language")
+        if saved_language:
+            cfg.LANGUAGE = saved_language
 
         # Subsistemas de UI
         self.table      = Table(self.sw, self.sh)
@@ -141,6 +160,12 @@ class Renderer:
         # Estado del renderer
         self._state   = self._MENU
         self._engine: Optional[GameEngine] = None
+
+        # Fase 25: Desafío activo (None en una partida normal) y su
+        # resultado en cuanto se decide ("won"/"lost") -- ver _start_game,
+        # _on_round_end, _on_state_change y _advance_from_result.
+        self._challenge: Optional[Challenge] = None
+        self._challenge_result: Optional[str] = None
 
         # Secuenciador del turno del crupier (revela y pide carta a carta,
         # esperando a que cada animación termine antes de seguir)
@@ -246,7 +271,7 @@ class Renderer:
         seats: list[tuple[int, str]] = []
         while True:
             exclude = {pid for pid, _ in seats}
-            title = "¿Quién juega?" if not seats else "¿Quién se sienta también?"
+            title = i18n.t("profile.title_default") if not seats else i18n.t("renderer.title_add_seat")
             profile_select = ProfileSelect(self.screen, exclude_ids=exclude, title=title)
             pid, name = profile_select.run()
             seats.append((pid, name))
@@ -259,7 +284,7 @@ class Renderer:
 
         greeting = seats[0][1] if len(seats) == 1 else ", ".join(n for _, n in seats)
         menu = MainMenu(self.screen, greeting, seats=seats, sounds=self.sounds)
-        preset_name, custom_rules = menu.run()
+        preset_name, custom_rules, challenge = menu.run()
 
         # El menú (o su pantalla de Ajustes, Fase 15) puede haber cambiado
         # el tema de mesa/cartas en caliente -- se invalida aquí, siempre,
@@ -269,14 +294,27 @@ class Renderer:
         self.table.invalidate()
         self.card_gen.invalidate_back()
 
-        self._start_game(seats, preset_name, custom_rules)
+        self._start_game(seats, preset_name, custom_rules, challenge)
 
     def _start_game(self, seats: list[tuple[int, str]], preset_name: str,
-                     custom_rules: Optional[Rules] = None) -> None:
-        # "Personalizado" trae ya el objeto Rules hecho a mano en
-        # RulesEditor; cualquier otro nombre es uno de los presets fijos
-        # de config/rules_presets.py, como siempre.
-        rules = custom_rules if custom_rules is not None else get_preset(preset_name)
+                     custom_rules: Optional[Rules] = None,
+                     challenge: Optional[Challenge] = None) -> None:
+        # Fase 25: un Desafío trae sus propias reglas/fichas (ver
+        # Challenge.build_rules) y anula tanto preset_name como
+        # custom_rules -- se etiqueta el hand_history con su nombre para
+        # poder distinguirlo de una partida normal si se mira el
+        # historial más tarde.
+        self._challenge = challenge
+        self._challenge_result: Optional[str] = None
+        if challenge is not None:
+            rules = challenge.build_rules()
+            challenge_name, _ = i18n.challenge_text(challenge)
+            preset_name = i18n.t("renderer.challenge_preset_label", name=challenge_name)
+        else:
+            # "Personalizado" trae ya el objeto Rules hecho a mano en
+            # RulesEditor; cualquier otro nombre es uno de los presets
+            # fijos de config/rules_presets.py, como siempre.
+            rules = custom_rules if custom_rules is not None else get_preset(preset_name)
         players_cfg = [{"name": name, "profile_id": pid} for pid, name in seats]
         self._engine = GameEngine(rules=rules, players=players_cfg, preset_name=preset_name)
         self._engine.auto_dealer_turn = False   # la UI Pygame pacea el turno del crupier
@@ -407,8 +445,9 @@ class Renderer:
             self.hud.toggle_achievements()
         if key == pygame.K_F5:
             cfg.TRAINING_MODE = not cfg.TRAINING_MODE
-            state = "activado" if cfg.TRAINING_MODE else "desactivado"
-            self.hud.add_message(f"Modo entrenamiento {state}", self.sw // 2, self.sh // 2 - 60, cfg.COLOR_GOLD)
+            state = i18n.t("renderer.training_on") if cfg.TRAINING_MODE else i18n.t("renderer.training_off")
+            self.hud.add_message(i18n.t("renderer.training_mode_toggle", state=state),
+                                  self.sw // 2, self.sh // 2 - 60, cfg.COLOR_GOLD)
         if key == pygame.K_m:
             self.sounds.toggle_music()
 
@@ -451,7 +490,7 @@ class Renderer:
     def _confirm_bet(self) -> None:
         if self._pending_bet < self._engine.rules.min_bet:
             self.hud.add_message(
-                f"Apuesta mínima: ${int(self._engine.rules.min_bet)}",
+                i18n.t("renderer.min_bet_warning", amount=int(self._engine.rules.min_bet)),
                 self.sw//2, self.sh//2,
                 cfg.COLOR_LOSE,
             )
@@ -622,7 +661,7 @@ class Renderer:
                     self._turn_reveal_wait = self._dealer_pause()
                     self._turn_reveal_reason = "blackjack"
                     self._player_message(
-                        f"¡Blackjack de {self._engine.player.name}!", cfg.COLOR_BJ)
+                        i18n.t("renderer.natural_blackjack", name=self._engine.player.name), cfg.COLOR_BJ)
                 else:
                     self._turn_reveal_wait = 0
                     self._turn_reveal_reason = None
@@ -649,7 +688,7 @@ class Renderer:
                             sprite.flip_reveal()
                             self.counter.register_card(sprite.card)
                             self.sounds.play("flip")
-                    self._dealer_message("El crupier destapa su carta...", cfg.COLOR_GOLD)
+                    self._dealer_message(i18n.t("renderer.dealer_reveals"), cfg.COLOR_GOLD)
                 self._dealer_seq_active = True
                 self._dealer_seq_wait = self._dealer_pause(long=True)
 
@@ -657,6 +696,14 @@ class Renderer:
                 pass  # resultados llegan por on_round_end / on_round_end_players
 
             case GameState.GAME_OVER:
+                # Fase 25: quedarse sin fichas en mitad de un Desafío es,
+                # sencillamente, perderlo -- se reutiliza la detección de
+                # bancarrota que ya existía (motivo de sobra: es la única
+                # forma en que un Desafío puede terminar SIN que se acabe
+                # de resolver una ronda con evaluate(), así que no hay
+                # duplicar lógica de fichas aquí).
+                if self._challenge is not None and self._challenge_result is None:
+                    self._challenge_result = "lost"
                 # Mismo motivo que en BETTING: no cortar la pantalla de
                 # resultado si todavía se está mostrando.
                 if self._state != self._RESULT:
@@ -696,6 +743,18 @@ class Renderer:
         self._result_glows.clear()
         self._state = self._RESULT
 
+        # Fase 25: con un Desafío activo, se comprueba tras CADA ronda si
+        # ya se ha decidido (ganado/perdido) -- stats y chips ya están
+        # actualizados en este punto (el motor resuelve el pago entero
+        # antes de emitir on_round_end). El cambio de pantalla real a la
+        # de fin de desafío se hace en _advance_from_result, igual que
+        # GAME_OVER: no se corta la pantalla de resultado de esta última
+        # mano de golpe.
+        if self._challenge is not None and self._challenge_result is None:
+            status = self._challenge.evaluate(self._engine.player.stats, self._engine.player.chips)
+            if status != "in_progress":
+                self._challenge_result = status
+
         # Actualizar contador con hole card ya revelada
         self.counter.update_deck_estimate(self._engine.deck)
 
@@ -722,22 +781,22 @@ class Renderer:
         results = [p.result for p in payouts]
         if RoundResult.BLACKJACK_WIN in results:
             self.particles.emit_blackjack(cx, cy - 80)
-            self.hud.show_result("BLACKJACK!", cfg.COLOR_BJ, icon="star")
+            self.hud.show_result(i18n.t("renderer.result_blackjack"), cfg.COLOR_BJ, icon="star")
             self.sounds.play("blackjack")
             self._trigger_zoom_flash()
         elif RoundResult.WIN in results or RoundResult.DEALER_BUST in results:
             self.particles.emit_win(cx, cy)
-            self.hud.show_result("GANASTE", cfg.COLOR_WIN, icon="check")
+            self.hud.show_result(i18n.t("renderer.result_win"), cfg.COLOR_WIN, icon="check")
             self.sounds.play("win")
         elif RoundResult.LOSS in results:
             self.particles.emit_bust(cx, cy + 80)
-            self.hud.show_result("PERDISTE", cfg.COLOR_LOSE, icon="cross")
+            self.hud.show_result(i18n.t("renderer.result_loss"), cfg.COLOR_LOSE, icon="cross")
             self.sounds.play("bust")
         elif RoundResult.SURRENDER in results:
-            self.hud.show_result("RENDICIÓN", cfg.COLOR_PUSH)
+            self.hud.show_result(i18n.t("renderer.result_surrender"), cfg.COLOR_PUSH)
             self.sounds.play("push")
         else:
-            self.hud.show_result("EMPATE", cfg.COLOR_PUSH)
+            self.hud.show_result(i18n.t("renderer.result_push"), cfg.COLOR_PUSH)
             self.sounds.play("push")
 
     def _on_round_end_players(self, payouts_by_player: list[list[HandPayout]]) -> None:
@@ -773,13 +832,14 @@ class Renderer:
         base_y = self.sh // 2 - 130
         any_won = False
         for i, outcome in enumerate(outcomes):
-            kind_label = "Parejas Perfectas" if outcome.kind == "perfect_pairs" else "21+3"
+            kind_label = i18n.t("renderer.sidebet_perfect_pairs") if outcome.kind == "perfect_pairs" else "21+3"
+            outcome_label = i18n.side_bet_label(outcome.label)
             if outcome.won:
                 any_won = True
-                text = f"{kind_label}: {outcome.label} -> +{outcome.net:.0f}"
+                text = f"{kind_label}: {outcome_label} -> +{outcome.net:.0f}"
                 color = cfg.COLOR_WIN
             else:
-                text = f"{kind_label}: {outcome.label}"
+                text = f"{kind_label}: {outcome_label}"
                 color = (150, 150, 150)
             self.hud.add_message(text, self.sw // 2, base_y - i * 26, color)
         if any_won:
@@ -787,7 +847,7 @@ class Renderer:
 
     def _on_engine_message(self, msg: str) -> None:
         self.hud.add_message(msg, self.sw//2, self.sh//2 - 60, cfg.COLOR_GOLD)
-        if "Rebarajando" in msg:
+        if msg == i18n.t("engine.reshuffling"):
             self.sounds.play("shuffle")
             self._trigger_shuffle_fx()
 
@@ -820,9 +880,9 @@ class Renderer:
         "split": "act_split", "surrender": "act_surrender",
     }
 
-    _TRAINING_LABELS = {
-        "hit": "Pedir carta", "stand": "Plantarse", "double": "Doblar",
-        "split": "Dividir", "surrender": "Rendirse",
+    _TRAINING_LABEL_KEYS = {
+        "hit": "renderer.action_hit", "stand": "renderer.action_stand", "double": "renderer.action_double",
+        "split": "renderer.action_split", "surrender": "renderer.action_surrender",
     }
 
     def _on_player_action(self, action: str) -> None:
@@ -858,11 +918,11 @@ class Renderer:
             self._turn_reveal_reason = "double"
             if doubling_hand.is_bust:
                 self._player_message(
-                    f"{doubling_player_name} dobla y se pasa ({doubling_hand.value})",
+                    i18n.t("renderer.double_and_bust", name=doubling_player_name, value=doubling_hand.value),
                     cfg.COLOR_LOSE)
             else:
                 self._player_message(
-                    f"{doubling_player_name} dobla: {doubling_hand.value}",
+                    i18n.t("renderer.double_result", name=doubling_player_name, value=doubling_hand.value),
                     cfg.COLOR_GOLD)
 
     def _check_training_play(self, action: str) -> None:
@@ -883,11 +943,12 @@ class Renderer:
         self._training_total += 1
         if action == best:
             self._training_correct += 1
-            self._training_feedback = ("¡Correcto!", cfg.COLOR_WIN, self._TRAINING_FEEDBACK_TOTAL)
+            self._training_feedback = (i18n.t("renderer.training_correct"), cfg.COLOR_WIN, self._TRAINING_FEEDBACK_TOTAL)
         else:
-            best_label = self._TRAINING_LABELS.get(best, best)
+            best_key = self._TRAINING_LABEL_KEYS.get(best)
+            best_label = i18n.t(best_key) if best_key else best
             self._training_feedback = (
-                f"Estrategia básica: {best_label}", (220, 150, 0), self._TRAINING_FEEDBACK_TOTAL,
+                i18n.t("renderer.training_should_have", label=best_label), (220, 150, 0), self._TRAINING_FEEDBACK_TOTAL,
             )
 
     def _pre_split_sprites(self) -> None:
@@ -977,7 +1038,8 @@ class Renderer:
             toast_name = (self._seat_names[player_idx]
                           if len(self._seat_names) > 1 and player_idx < len(self._seat_names)
                           else None)
-            self._active_toast = AchievementToast(ach.name, ach.description, ach.icon,
+            ach_name, ach_desc = i18n.achievement_text(ach)
+            self._active_toast = AchievementToast(ach_name, ach_desc, ach.icon,
                                                     ach.color, player_name=toast_name)
             self.sounds.play("achievement")
 
@@ -1030,11 +1092,11 @@ class Renderer:
         se pasa, o revela blackjack)."""
         dealer = self._engine.dealer
         if dealer.is_bust:
-            self._dealer_message("¡El crupier se pasa!", cfg.COLOR_WIN)
+            self._dealer_message(i18n.t("renderer.dealer_busts"), cfg.COLOR_WIN)
         elif dealer.has_blackjack:
-            self._dealer_message("El crupier tiene Blackjack", cfg.COLOR_LOSE)
+            self._dealer_message(i18n.t("renderer.dealer_blackjack"), cfg.COLOR_LOSE)
         else:
-            self._dealer_message(f"El crupier se planta en {dealer.value}", cfg.COLOR_TEXT)
+            self._dealer_message(i18n.t("renderer.dealer_stands", value=dealer.value), cfg.COLOR_TEXT)
 
     def _update_dealer_sequence(self) -> None:
         """Avanza el turno del crupier un paso cada vez que toca, esperando
@@ -1051,7 +1113,7 @@ class Renderer:
             return
 
         if self._engine.dealer_needs_card():
-            self._dealer_message("El crupier pide carta...", cfg.COLOR_TEXT)
+            self._dealer_message(i18n.t("renderer.dealer_hits"), cfg.COLOR_TEXT)
             self._engine.dealer_deal_next_card()
             self._dealer_seq_wait = self._dealer_pause()
         else:
@@ -1060,7 +1122,11 @@ class Renderer:
             self._engine.finish_dealer_turn()
 
     def _advance_from_result(self) -> None:
-        if self._engine.state == GameState.GAME_OVER:
+        if self._challenge_result is not None:
+            self.hud.clear_transient()
+            self._state = self._CHALLENGE_END
+        elif self._engine.state == GameState.GAME_OVER:
+            self.hud.clear_transient()
             self._state = self._GAMEOVER
         elif self._engine.state == GameState.BETTING:
             self._apply_betting_reset()
@@ -1127,10 +1193,10 @@ class Renderer:
                     self._btn_bar.draw(surf)
             case self._INSURANCE:
                 if self._ins_bar:
-                    msg = ("¿Even Money o Seguro?" if
+                    msg = (i18n.t("renderer.even_money_or_insurance") if
                            (self._engine.player.active_hand and
                             self._engine.player.active_hand.is_blackjack)
-                           else "El crupier muestra As — ¿Seguro?")
+                           else i18n.t("renderer.dealer_shows_ace"))
                     if len(self._engine.players) > 1:
                         msg = f"{self._engine.player.name}: {msg}"
                     self._ins_bar.draw(surf, msg)
@@ -1138,6 +1204,8 @@ class Renderer:
                 self._draw_result_overlay(surf)
             case self._GAMEOVER:
                 self._draw_gameover(surf)
+            case self._CHALLENGE_END:
+                self._draw_challenge_end(surf)
 
         # 7. Tira de asientos (solo multijugador)
         if self._engine and len(self._engine.players) > 1:
@@ -1147,9 +1215,15 @@ class Renderer:
         active_unlocked = (self._unlocked_achievement_ids[self._engine.active_player_index]
                             if self._engine and self._engine.active_player_index < len(self._unlocked_achievement_ids)
                             else set())
+        # El banner de progreso del Desafío no aporta nada de más sobre la
+        # propia pantalla de fin de Desafío (que ya repite ese mismo
+        # nombre/cifras a tamaño completo) -- se oculta ahí para no
+        # duplicar información.
+        banner_challenge = self._challenge if self._state not in (self._GAMEOVER, self._CHALLENGE_END) else None
         self.hud.draw(surf, engine=self._engine, counter=self.counter,
                        unlocked_achievements=active_unlocked,
-                       training_stats=(self._training_correct, self._training_total))
+                       training_stats=(self._training_correct, self._training_total),
+                       challenge=banner_challenge)
 
         # 8b. Feedback puntual del modo entrenamiento (encima del HUD normal,
         #     posición fija -- no sube ni se desvía como los mensajes flotantes)
@@ -1243,7 +1317,7 @@ class Renderer:
             chips=int(engine.player.chips),
             bet=int(self._pending_bet),
             rules_str=str(engine.rules),
-            deck_info=f"Zapato: {engine.deck.cards_remaining}/{engine.deck.total_cards}",
+            deck_info=i18n.t("renderer.shoe_info", remaining=engine.deck.cards_remaining, total=engine.deck.total_cards),
         )
 
     def _draw_betting_ui(self, surf: pygame.Surface) -> None:
@@ -1254,7 +1328,7 @@ class Renderer:
 
         # Multijugador: deja claro a quién le toca apostar
         if len(self._engine.players) > 1:
-            turn_txt = self._font_msg.render(f"Turno de apuesta: {player.name}", True, cfg.COLOR_GOLD)
+            turn_txt = self._font_msg.render(i18n.t("renderer.betting_turn", name=player.name), True, cfg.COLOR_GOLD)
             surf.blit(turn_txt, (self.sw // 2 - turn_txt.get_width() // 2,
                                   int(self.sh * 0.42) - 96))
 
@@ -1279,7 +1353,7 @@ class Renderer:
             pygame.draw.rect(surf, (15, 12, 0), self._deal_btn, border_radius=8)
             pygame.draw.rect(surf, col, self._deal_btn, 2, border_radius=8)
             label_col = col if can_deal else (80, 80, 80)
-            t = self._font_msg.render("DEAL", True, label_col)
+            t = self._font_msg.render(i18n.t("renderer.deal_button"), True, label_col)
             icon_w = t.get_height() * 0.7
             group_w = t.get_width() + icon_w + 8
             tx = self._deal_btn.centerx - int(group_w) // 2
@@ -1293,7 +1367,7 @@ class Renderer:
             col2 = (160, 100, 220) if self._rebet_hover else (100, 60, 160)
             pygame.draw.rect(surf, (10, 5, 20), self._rebet_btn, border_radius=8)
             pygame.draw.rect(surf, col2, self._rebet_btn, 2, border_radius=8)
-            t2 = self._font_small.render(f"Repetir ${int(last_bet)}", True, col2)
+            t2 = self._font_small.render(i18n.t("renderer.rebet_button", amount=int(last_bet)), True, col2)
             icon_r2 = t2.get_height() * 0.42
             icon_w2 = icon_r2 * 2 + 6
             tx2 = self._rebet_btn.centerx - int(t2.get_width() + icon_w2) // 2
@@ -1302,10 +1376,7 @@ class Renderer:
             surf.blit(t2, (tx2 + icon_w2, ty2))
 
         # Instrucción
-        hint = self._font_small.render(
-            "Haz clic en las fichas para apostar · Enter para repartir",
-            True, (100, 100, 100)
-        )
+        hint = self._font_small.render(i18n.t("renderer.betting_hint"), True, (100, 100, 100))
         surf.blit(hint, (self.sw//2 - hint.get_width()//2, self.sh - 22))
 
     def _draw_dealing_ui(self, surf: pygame.Surface) -> None:
@@ -1314,7 +1385,7 @@ class Renderer:
         if not self._engine or len(self._engine.players) <= 1:
             return
         name = self._engine.player.name
-        t = self._font_msg.render(f"Repartiendo a {name}...", True, cfg.COLOR_GOLD)
+        t = self._font_msg.render(i18n.t("renderer.dealing_to", name=name), True, cfg.COLOR_GOLD)
         surf.blit(t, (self.sw // 2 - t.get_width() // 2, int(self.sh * 0.42) - 96))
 
     def _draw_result_overlay(self, surf: pygame.Surface) -> None:
@@ -1337,9 +1408,9 @@ class Renderer:
 
         y = self.sh//2 - 90
         for i, p in enumerate(self._payouts):
-            label = RESULT_LABELS.get(p.result, p.result.name)
+            label = _result_label(p.result)
             col   = RESULT_COLORS.get(p.result, cfg.COLOR_TEXT)
-            hand_lbl = f"Mano {i+1}: " if len(self._payouts) > 1 else ""
+            hand_lbl = i18n.t("renderer.hand_n_label", n=i + 1) if len(self._payouts) > 1 else ""
             net_sign = "+" if p.net > 0 else ""
             line = f"{hand_lbl}{label}   {net_sign}{int(p.net)}"
             t = self._font_msg.render(line, True, col)
@@ -1350,11 +1421,11 @@ class Renderer:
             total = sum(p.net for p in self._payouts)
             sign  = "+" if total > 0 else ""
             total_col = cfg.COLOR_WIN if total > 0 else (cfg.COLOR_LOSE if total < 0 else cfg.COLOR_PUSH)
-            tline = self._font_msg.render(f"Total: {sign}{int(total)}", True, total_col)
+            tline = self._font_msg.render(i18n.t("renderer.total_label", sign=sign, amount=int(total)), True, total_col)
             surf.blit(tline, (self.sw//2 - tline.get_width()//2, y + 4))
             y += 42
 
-        cont = self._font_small.render("Click o Enter para continuar", True, (120, 120, 120))
+        cont = self._font_small.render(i18n.t("renderer.continue_hint"), True, (120, 120, 120))
         surf.blit(cont, (self.sw//2 - cont.get_width()//2, self.sh//2 + 100))
 
     def _draw_result_overlay_multi(self, surf: pygame.Surface) -> None:
@@ -1363,15 +1434,15 @@ class Renderer:
         names = self._seat_names
         rows: list[tuple[str, str, tuple, float]] = []   # (name, label, color, net)
         for i, payouts in enumerate(self._payouts_by_player):
-            name = names[i] if i < len(names) else f"Jugador {i+1}"
+            name = names[i] if i < len(names) else i18n.t("renderer.player_n_fallback", n=i + 1)
             if not payouts:
                 continue
             net = sum(p.net for p in payouts)
             if len(payouts) == 1:
-                label = RESULT_LABELS.get(payouts[0].result, payouts[0].result.name)
+                label = _result_label(payouts[0].result)
                 col = RESULT_COLORS.get(payouts[0].result, cfg.COLOR_TEXT)
             else:
-                label = f"{len(payouts)} manos"
+                label = i18n.t("renderer.n_hands", n=len(payouts))
                 col = cfg.COLOR_WIN if net > 0 else (cfg.COLOR_LOSE if net < 0 else cfg.COLOR_PUSH)
             rows.append((name, label, col, net))
 
@@ -1385,7 +1456,7 @@ class Renderer:
         pygame.draw.rect(overlay, cfg.COLOR_GOLD, overlay.get_rect(), 1, border_radius=16)
         surf.blit(overlay, (x0, y0))
 
-        title = self._font_msg.render("RESULTADO DE LA RONDA", True, cfg.COLOR_GOLD)
+        title = self._font_msg.render(i18n.t("renderer.round_result_title"), True, cfg.COLOR_GOLD)
         surf.blit(title, (self.sw // 2 - title.get_width() // 2, y0 + 14))
 
         y = y0 + 58
@@ -1399,7 +1470,7 @@ class Renderer:
             surf.blit(net_s, (x0 + box_w - 24 - net_s.get_width(), y))
             y += row_h
 
-        cont = self._font_small.render("Click o Enter para continuar", True, (170, 170, 170))
+        cont = self._font_small.render(i18n.t("renderer.continue_hint"), True, (170, 170, 170))
         surf.blit(cont, (self.sw//2 - cont.get_width()//2, y0 + box_h + 14))
 
     def _draw_gameover(self, surf: pygame.Surface) -> None:
@@ -1408,15 +1479,15 @@ class Renderer:
         overlay.fill((0, 0, 0, 180))
         surf.blit(overlay, (0, 0))
 
-        t1 = self._font_big.render("GAME OVER", True, cfg.COLOR_LOSE)
+        t1 = self._font_big.render(i18n.t("renderer.game_over_title"), True, cfg.COLOR_LOSE)
         surf.blit(t1, (self.sw//2 - t1.get_width()//2, self.sh//2 - 120))
 
         if self._engine:
             s = self._engine.player.stats
             lines = [
-                f"Manos jugadas: {s.hands_played}",
-                f"W / L / P:  {s.hands_won} / {s.hands_lost} / {s.hands_push}",
-                f"Neto: {s.net_profit:+.0f}   ROI: {s.roi:+.1%}",
+                i18n.t("renderer.hands_played_stat", n=s.hands_played),
+                i18n.t("renderer.wlp_stat", w=s.hands_won, l=s.hands_lost, p=s.hands_push),
+                i18n.t("renderer.net_roi_stat", net=s.net_profit, roi=s.roi),
             ]
             y = self.sh//2 - 40
             for line in lines:
@@ -1424,8 +1495,49 @@ class Renderer:
                 surf.blit(t, (self.sw//2 - t.get_width()//2, y))
                 y += 38
 
-        restart = self._font_msg.render("ESC -> Menú principal", True, (160, 160, 160))
+        restart = self._font_msg.render(i18n.t("renderer.esc_to_menu"), True, (160, 160, 160))
         surf.blit(restart, (self.sw//2 - restart.get_width()//2, self.sh - 80))
+
+    def _draw_challenge_end(self, surf: pygame.Surface) -> None:
+        """Pantalla de fin de Desafío (Fase 25) -- ganado o perdido, según
+        self._challenge_result. Mismo patrón visual que _draw_gameover."""
+        overlay = pygame.Surface((self.sw, self.sh), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 190))
+        surf.blit(overlay, (0, 0))
+
+        won = self._challenge_result == "won"
+        col = cfg.COLOR_WIN if won else cfg.COLOR_LOSE
+        title_text = i18n.t("renderer.challenge_won_title") if won else i18n.t("renderer.challenge_lost_title")
+
+        icon_cy = self.sh // 2 - 155
+        if won:
+            icons.check_mark(surf, self.sw // 2, icon_cy, 30, col, width=5)
+        else:
+            icons.cross_mark(surf, self.sw // 2, icon_cy, 26, col, width=5)
+
+        t1 = self._font_big.render(title_text, True, col)
+        surf.blit(t1, (self.sw // 2 - t1.get_width() // 2, self.sh // 2 - 118))
+
+        if self._challenge is not None:
+            challenge_name, _ = i18n.challenge_text(self._challenge)
+            name_s = self._font_msg.render(challenge_name, True, cfg.COLOR_GOLD)
+            surf.blit(name_s, (self.sw // 2 - name_s.get_width() // 2, self.sh // 2 - 62))
+
+        if self._engine:
+            s = self._engine.player.stats
+            lines = [
+                i18n.t("renderer.hands_played_stat", n=s.hands_played),
+                i18n.t("renderer.wlp_stat", w=s.hands_won, l=s.hands_lost, p=s.hands_push),
+                i18n.t("renderer.final_chips_net_stat", chips=int(self._engine.player.chips), net=s.net_profit),
+            ]
+            y = self.sh // 2 - 16
+            for line in lines:
+                t = self._font_msg.render(line, True, cfg.COLOR_TEXT)
+                surf.blit(t, (self.sw // 2 - t.get_width() // 2, y))
+                y += 34
+
+        restart = self._font_msg.render(i18n.t("renderer.esc_to_menu"), True, (160, 160, 160))
+        surf.blit(restart, (self.sw // 2 - restart.get_width() // 2, self.sh - 80))
 
     def _draw_seat_strip(self, surf: pygame.Surface) -> None:
         """Tira horizontal en la parte superior con un resumen de cada
@@ -1472,27 +1584,27 @@ class Renderer:
                 # sola al siguiente jugador -- por Blackjack natural (sin
                 # ninguna acción posible) o por acabar de doblar.
                 if self._turn_reveal_reason == "double":
-                    return "DOBLA"
-                return "¡BLACKJACK!"
+                    return i18n.t("renderer.seat_doubles")
+                return i18n.t("renderer.seat_blackjack")
             phase = {
-                self._BETTING: "apostando",
-                self._DEALING: "repartiendo",
-                self._INSURANCE: "seguro",
-                self._PLAYING: "jugando",
-            }.get(self._state, "en juego")
+                self._BETTING: i18n.t("renderer.status_betting"),
+                self._DEALING: i18n.t("renderer.status_dealing"),
+                self._INSURANCE: i18n.t("renderer.status_insurance"),
+                self._PLAYING: i18n.t("renderer.status_playing"),
+            }.get(self._state, i18n.t("renderer.status_in_game"))
             return phase.upper()
         if not player.hands:
-            return "esperando"
+            return i18n.t("renderer.status_waiting")
         hand = player.active_hand or (player.hands[-1] if player.hands else None)
         if hand is None:
-            return "esperando"
+            return i18n.t("renderer.status_waiting")
         if hand.is_bust:
-            return f"pasada ({hand.value})"
+            return i18n.t("renderer.status_bust", value=hand.value)
         if hand.is_blackjack:
-            return "¡Blackjack!"
+            return i18n.t("renderer.blackjack_bang")
         if hand.is_finished:
-            return f"plantado ({hand.value})"
-        return f"mano: {hand.value}"
+            return i18n.t("renderer.status_stood", value=hand.value)
+        return i18n.t("renderer.status_hand_value", value=hand.value)
 
     _TRAINING_FEEDBACK_TOTAL = 70
 
@@ -1506,7 +1618,7 @@ class Renderer:
         surf.blit(s, (x, y))
 
     def _draw_keybinds(self, surf: pygame.Surface) -> None:
-        lines = ["F1: Hints  F2: Contador  F3: Stats  F4: Logros  F5: Entrenamiento  M: Música  ESC: Menú"]
+        lines = [i18n.t("renderer.keybinds_hint")]
         y = 8
         for line in lines:
             t = self._font_small.render(line, True, (70, 70, 70))

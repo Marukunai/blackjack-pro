@@ -123,6 +123,81 @@ def downtown_vegas() -> Rules:
     )
 
 
+def macau() -> Rules:
+    """
+    Macau (el mayor mercado de casinos del mundo).
+    8 mazos, H17, BJ 3:2, DAS, sin Surrender -- reglas típicamente más
+    duras para el jugador que Vegas Strip, con límites más altos.
+    """
+    return Rules(
+        num_decks=8,
+        penetration=0.80,
+        dealer_rule=DealerRule.HIT_SOFT_17,
+        blackjack_payout=BlackjackPayout.THREE_TO_TWO,
+        double_rule=DoubleRule.ANY_TWO,
+        double_after_split=True,
+        max_splits=3,
+        resplit_aces=False,
+        hit_split_aces=False,
+        surrender_rule=SurrenderRule.NONE,
+        insurance_allowed=True,
+        even_money_allowed=True,
+        min_bet=25.0,
+        max_bet=3000.0,
+    )
+
+
+def high_roller() -> Rules:
+    """
+    Sala VIP / High Roller.
+    Pocos mazos y reglas generosas (lo habitual para atraer a apuestas
+    grandes), pero límites de apuesta muy por encima del resto de presets.
+    """
+    return Rules(
+        num_decks=2,
+        penetration=0.75,
+        dealer_rule=DealerRule.STAND_SOFT_17,
+        blackjack_payout=BlackjackPayout.THREE_TO_TWO,
+        double_rule=DoubleRule.ANY_TWO,
+        double_after_split=True,
+        max_splits=3,
+        resplit_aces=True,
+        hit_split_aces=True,
+        surrender_rule=SurrenderRule.LATE,
+        insurance_allowed=True,
+        even_money_allowed=True,
+        min_bet=100.0,
+        max_bet=10000.0,
+        starting_chips=5000.0,
+    )
+
+
+def house_rules() -> Rules:
+    """
+    Reglas de Casa (partida informal, entre amigos).
+    Un mazo, sin Surrender, y las reglas más permisivas del catálogo --
+    incluido el Five Card Charlie, poco común en un casino real pero
+    clásico de las partidas caseras.
+    """
+    return Rules(
+        num_decks=1,
+        penetration=0.65,
+        dealer_rule=DealerRule.STAND_SOFT_17,
+        blackjack_payout=BlackjackPayout.THREE_TO_TWO,
+        double_rule=DoubleRule.ANY_TWO,
+        double_after_split=True,
+        max_splits=3,
+        resplit_aces=True,
+        hit_split_aces=True,
+        surrender_rule=SurrenderRule.NONE,
+        insurance_allowed=True,
+        even_money_allowed=True,
+        min_bet=1.0,
+        max_bet=100.0,
+        five_card_charlie=True,
+    )
+
+
 # Mapa de nombre → función para el menú de configuración
 PRESETS: dict[str, callable] = {
     "Vegas Strip":    vegas_strip,
@@ -130,6 +205,9 @@ PRESETS: dict[str, callable] = {
     "European":       european,
     "Single Deck":    single_deck,
     "Downtown Vegas": downtown_vegas,
+    "Macau":          macau,
+    "High Roller":    high_roller,
+    "Reglas de Casa": house_rules,
 }
 
 

@@ -24,7 +24,7 @@
 ; ---------------------------------------------------------------------
 
 #define MyAppName "Blackjack Pro"
-#define MyAppVersion "1.0"
+#define MyAppVersion "1.2.0"
 #define MyAppPublisher "Maruku"
 #define MyAppExeName "BlackjackPro.exe"
 

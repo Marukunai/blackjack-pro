@@ -18,6 +18,7 @@ import pygame
 from typing import Optional
 
 from config import settings as cfg
+from config import i18n
 from engine.profile_store import get_store
 from ui import icons
 
@@ -25,24 +26,27 @@ PAGE_SIZE = 12
 CHART_LIMIT = 300   # nº máximo de manos que entran en la gráfica de evolución
 
 # Anchos de columna de la tabla, reutilizados también para alinear el
-# ancho de la gráfica de evolución con la tabla que tiene debajo.
+# ancho de la gráfica de evolución con la tabla que tiene debajo. El
+# segundo elemento de cada tupla es ahora la clave i18n de la etiqueta
+# (se traduce en vivo en _draw_table), no el texto en sí.
 _TABLE_COLS = [
-    ("Fecha", 190), ("Casino", 190), ("Apuesta", 100),
-    ("Resultado", 160), ("Neto", 110), ("Fichas", 110),
+    ("history.col_date", 190), ("history.col_casino", 190), ("history.col_bet", 100),
+    ("history.col_result", 160), ("history.col_net", 110), ("history.col_chips", 110),
 ]
 _TABLE_W = sum(w for _, w in _TABLE_COLS)
 
 # Mismas etiquetas/colores que usa ui/renderer.py para RoundResult en la
 # pantalla de resultado, pero indexadas por el nombre de enum (str) tal
 # como se guarda en hand_history.result -- así el historial se ve igual
-# que el mensaje que ya vio el jugador al terminar esa mano.
+# que el mensaje que ya vio el jugador al terminar esa mano. Los valores
+# son ahora claves i18n, traducidas en vivo en _draw_table.
 _RESULT_LABELS = {
-    "WIN":            "Ganaste",
-    "BLACKJACK_WIN":  "¡Blackjack!",
-    "DEALER_BUST":    "Crupier se pasó",
-    "LOSS":           "Perdiste",
-    "PUSH":           "Empate",
-    "SURRENDER":      "Rendición",
+    "WIN":            "history.result_win",
+    "BLACKJACK_WIN":  "history.result_blackjack_win",
+    "DEALER_BUST":    "history.result_dealer_bust",
+    "LOSS":           "history.result_loss",
+    "PUSH":           "history.result_push",
+    "SURRENDER":      "history.result_surrender",
 }
 _RESULT_COLORS = {
     "WIN":            cfg.COLOR_WIN,
@@ -66,7 +70,7 @@ class HandHistoryScreen:
         self.screen = screen
         self.sw, self.sh = screen.get_size()
         self.store = get_store()
-        self.profiles = profiles or [(None, "Jugador")]
+        self.profiles = profiles or [(None, i18n.t("history.default_player_name"))]
         self._idx = max(0, min(len(self.profiles) - 1, initial_index))
 
         self._font_title = pygame.font.SysFont(None, 38, bold=True)
@@ -199,13 +203,14 @@ class HandHistoryScreen:
             self._draw_tabs(surf, top)
             top += 44
 
-        title = self._font_title.render(f"Historial de {self.profile_name}", True, cfg.COLOR_GOLD)
+        title = self._font_title.render(
+            i18n.t("history.title_for_profile", name=self.profile_name), True, cfg.COLOR_GOLD)
         surf.blit(title, (self.sw // 2 - title.get_width() // 2, top))
         top += 56
 
         if self._total == 0:
             empty = self._font_row.render(
-                "Todavía no hay manos jugadas con este perfil.", True, (150, 150, 150))
+                i18n.t("history.empty_state"), True, (150, 150, 150))
             surf.blit(empty, (self.sw // 2 - empty.get_width() // 2, top + 60))
         else:
             self._draw_table(surf, top)
@@ -244,8 +249,8 @@ class HandHistoryScreen:
         self._replay_rects = []
 
         cx = x0
-        for label, w in cols:
-            lbl = self._font_head.render(label, True, (150, 150, 150))
+        for label_key, w in cols:
+            lbl = self._font_head.render(i18n.t(label_key), True, (150, 150, 150))
             surf.blit(lbl, (cx, y))
             cx += w
         y += 26
@@ -267,7 +272,8 @@ class HandHistoryScreen:
             surf.blit(self._font_row.render(date_str, True, cfg.COLOR_TEXT), (cx, y))
             cx += cols[0][1]
 
-            preset = row.get("preset_name") or "—"
+            preset_name = row.get("preset_name")
+            preset = i18n.preset_label(preset_name) if preset_name else "—"
             surf.blit(self._font_row.render(preset, True, cfg.COLOR_TEXT), (cx, y))
             cx += cols[1][1]
 
@@ -275,7 +281,7 @@ class HandHistoryScreen:
             cx += cols[2][1]
 
             result_key = row["result"]
-            label = _RESULT_LABELS.get(result_key, result_key)
+            label = i18n.t(_RESULT_LABELS[result_key]) if result_key in _RESULT_LABELS else result_key
             color = _RESULT_COLORS.get(result_key, cfg.COLOR_TEXT)
             surf.blit(self._font_row.render(label, True, color), (cx, y))
             cx += cols[3][1]
@@ -317,7 +323,7 @@ class HandHistoryScreen:
         surf.blit(box, (rect.x, rect.y))
 
         label = self._font_head.render(
-            f"Evolución de fichas (últimas {len(curve)} manos)", True, (170, 170, 170))
+            i18n.t("history.chip_evolution_label", n=len(curve)), True, (170, 170, 170))
         surf.blit(label, (rect.x + 14, rect.y + 8))
 
         plot = pygame.Rect(rect.x + 14, rect.y + 30, rect.w - 28, rect.h - 44)
@@ -391,7 +397,8 @@ class HandHistoryScreen:
         icons.triangle_right(surf, self._next_rect.centerx - 6, self._next_rect.centery, 14, next_col)
 
         page_lbl = self._font_row.render(
-            f"Página {self._page + 1} / {self._page_count}  ·  {self._total} manos en total",
+            i18n.t("history.pagination_label", page=self._page + 1,
+                   total_pages=self._page_count, total=self._total),
             True, (180, 180, 180))
         surf.blit(page_lbl, (self.sw // 2 - page_lbl.get_width() // 2, pag_y + 8))
 
@@ -399,12 +406,12 @@ class HandHistoryScreen:
         back_col = cfg.COLOR_GOLD if self._back_hover else (150, 150, 150)
         pygame.draw.rect(surf, (20, 15, 0), self._back_rect, border_radius=10)
         pygame.draw.rect(surf, back_col, self._back_rect, 2, border_radius=10)
-        back_txt = self._font_row.render("Volver", True, back_col)
+        back_txt = self._font_row.render(i18n.t("history.back_button"), True, back_col)
         surf.blit(back_txt, (self._back_rect.centerx - back_txt.get_width() // 2,
                               self._back_rect.centery - back_txt.get_height() // 2))
 
-        hint_parts = ["Flechas para cambiar de página", "Esc/Volver para salir"]
+        hint_parts = [i18n.t("history.hint_page_arrows"), i18n.t("history.hint_esc_exit")]
         if len(self.profiles) > 1:
-            hint_parts.insert(1, "Tab para cambiar de perfil")
+            hint_parts.insert(1, i18n.t("history.hint_tab_switch"))
         hint = self._font_small.render(" · ".join(hint_parts), True, (90, 90, 90))
         surf.blit(hint, (self.sw // 2 - hint.get_width() // 2, self.sh - 24))

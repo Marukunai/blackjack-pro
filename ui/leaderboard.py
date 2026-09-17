@@ -11,23 +11,25 @@ from __future__ import annotations
 import pygame
 
 from config import settings as cfg
+from config import i18n
 from engine.profile_store import get_store
 from engine.achievements import ACHIEVEMENTS
 from ui.profile_select import draw_avatar
 
 _TOTAL_ACHIEVEMENTS = len(ACHIEVEMENTS)
 
-# (key, etiqueta, ancho en px). "rank" no es clickable -- es la posición
-# resultante de ordenar por la columna activa, no una columna en sí.
+# (key, clave i18n de la etiqueta, ancho en px). "rank" no es clickable --
+# es la posición resultante de ordenar por la columna activa, no una
+# columna en sí. La etiqueta se traduce en vivo en _draw_table.
 _COLUMNS: list[tuple[str, str, int]] = [
-    ("rank",         "#",           40),
-    ("name",         "Perfil",      200),
-    ("chips",        "Fichas",      120),
-    ("hands_played", "Manos",       100),
-    ("win_pct",      "% Victorias", 130),
-    ("blackjacks",   "Blackjacks",  120),
-    ("best_streak",  "Mejor racha", 120),
-    ("achievements", "Logros",      110),
+    ("rank",         "leaderboard.col_rank",         40),
+    ("name",         "leaderboard.col_name",         200),
+    ("chips",        "leaderboard.col_chips",         120),
+    ("hands_played", "leaderboard.col_hands",         100),
+    ("win_pct",      "leaderboard.col_win_pct",       130),
+    ("blackjacks",   "leaderboard.col_blackjacks",    120),
+    ("best_streak",  "leaderboard.col_best_streak",   120),
+    ("achievements", "leaderboard.col_achievements",  110),
 ]
 
 
@@ -137,16 +139,16 @@ class LeaderboardScreen:
         surf = self.screen
         surf.fill(cfg.COLOR_BG)
 
-        title = self._font_title.render("Comparativa de perfiles", True, cfg.COLOR_GOLD)
+        title = self._font_title.render(i18n.t("leaderboard.title"), True, cfg.COLOR_GOLD)
         surf.blit(title, (self.sw // 2 - title.get_width() // 2, 40))
         sub = self._font_small.render(
-            "Click en una columna para ordenar por ella", True, (140, 140, 140))
+            i18n.t("leaderboard.sort_hint"), True, (140, 140, 140))
         surf.blit(sub, (self.sw // 2 - sub.get_width() // 2, 84))
 
         top = 130
         if not self._rows:
             empty = self._font_row.render(
-                "Todavía no hay perfiles para comparar.", True, (150, 150, 150))
+                i18n.t("leaderboard.empty_state"), True, (150, 150, 150))
             surf.blit(empty, (self.sw // 2 - empty.get_width() // 2, top + 60))
         else:
             self._draw_table(surf, top)
@@ -160,10 +162,10 @@ class LeaderboardScreen:
 
         self._col_rects = []
         cx = x0
-        for key, label, w in _COLUMNS:
+        for key, label_key, w in _COLUMNS:
             active = (key == self._sort_key)
             col = cfg.COLOR_GOLD if active else (150, 150, 150)
-            lbl = self._font_head.render(label, True, col)
+            lbl = self._font_head.render(i18n.t(label_key), True, col)
             surf.blit(lbl, (cx, y))
             if active:
                 self._draw_sort_arrow(surf, cx + lbl.get_width() + 10, y + 9, self._sort_desc, col)
@@ -232,8 +234,8 @@ class LeaderboardScreen:
         back_col = cfg.COLOR_GOLD if self._back_hover else (150, 150, 150)
         pygame.draw.rect(surf, (20, 15, 0), self._back_rect, border_radius=10)
         pygame.draw.rect(surf, back_col, self._back_rect, 2, border_radius=10)
-        back_txt = self._font_row.render("Volver", True, back_col)
+        back_txt = self._font_row.render(i18n.t("leaderboard.back_button"), True, back_col)
         surf.blit(back_txt, (self._back_rect.centerx - back_txt.get_width() // 2,
                               self._back_rect.centery - back_txt.get_height() // 2))
-        hint = self._font_small.render("Esc/Volver para salir", True, (90, 90, 90))
+        hint = self._font_small.render(i18n.t("leaderboard.hint_esc_exit"), True, (90, 90, 90))
         surf.blit(hint, (self.sw // 2 - hint.get_width() // 2, self.sh - 24))

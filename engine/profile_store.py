@@ -16,6 +16,8 @@ import time
 from pathlib import Path
 from typing import Optional
 
+from config import i18n
+
 
 class ProfileStore:
     """Acceso a la base de datos de perfiles locales."""
@@ -174,7 +176,7 @@ class ProfileStore:
                         starting_chips: float = 1000.0) -> int:
         name = name.strip()
         if not name:
-            raise ValueError("El nombre no puede estar vacío.")
+            raise ValueError(i18n.t("profile_store.empty_name"))
         now = time.time()
         color_str = f"{avatar_color[0]},{avatar_color[1]},{avatar_color[2]}"
         try:
@@ -189,7 +191,7 @@ class ProfileStore:
             self._conn.commit()
             return cur.lastrowid
         except sqlite3.IntegrityError:
-            raise ValueError(f"Ya existe un perfil llamado «{name}».")
+            raise ValueError(i18n.t("profile_store.duplicate_name", name=name))
 
     def delete_profile(self, profile_id: int) -> None:
         self._conn.execute("DELETE FROM profiles WHERE id = ?", (profile_id,))

@@ -8,6 +8,7 @@ import random
 import pygame
 from typing import Optional
 
+from config import i18n
 from ui import icons
 
 
@@ -224,7 +225,8 @@ class AchievementToast:
         else:
             icons.draw_suit(card, self.icon_shape, icon_cx, icon_cy, icon_r * 1.1, self.icon_color)
 
-        tag_text = "LOGRO DESBLOQUEADO" if not self.player_name else f"LOGRO DE {self.player_name.upper()}"
+        tag_text = (i18n.t("animations.achievement_unlocked") if not self.player_name
+                    else i18n.t("animations.achievement_for_player", name=self.player_name.upper()))
         tag = self._font_desc.render(tag_text, True, (212, 175, 55))
         title = self._font_title.render(self.name, True, (255, 255, 255))
         desc = self._font_desc.render(self.description, True, (190, 190, 190))

@@ -25,6 +25,11 @@ _DEFAULTS: dict[str, Any] = {
     "sfx_volume": None,
     "music_enabled": None,
     "sfx_enabled": None,
+    # Fase 26: idioma de la interfaz ("es"/"en"). None = usar el valor por
+    # defecto de config/settings.py (LANGUAGE = "es"), igual que el resto
+    # de ajustes -- una instalación nueva sin app_settings.json se
+    # comporta exactamente igual que antes de que existiera el idioma.
+    "language": None,
 }
 
 

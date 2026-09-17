@@ -14,6 +14,7 @@ from typing import Optional
 import pygame
 
 from config import settings as cfg
+from config import i18n
 from engine.app_settings import get_settings
 from ui import icons
 
@@ -73,6 +74,20 @@ class SettingsScreen:
         self._sfx_mute_hover = False
         self._layout_audio()
 
+        # ---- Idioma (Fase 26) ----
+        # Un simple par de botones ES/EN en la esquina superior derecha
+        # (no un swatch grid como mesa/cartas -- solo hay 2 opciones) que
+        # cambian cfg.LANGUAGE al instante y se persisten igual que el
+        # resto de ajustes. Al ser un valor "en vivo" leído por i18n.t()
+        # en cada frame, el resto de esta misma pantalla (y de cualquier
+        # otra) ya sale traducida sin más que redibujar.
+        self._lang = cfg.LANGUAGE if cfg.LANGUAGE in ("es", "en") else "es"
+        lang_w, lang_h = 64, 30
+        self._lang_es_rect = pygame.Rect(self.sw - 158, 22, lang_w, lang_h)
+        self._lang_en_rect = pygame.Rect(self.sw - 88, 22, lang_w, lang_h)
+        self._lang_es_hover = False
+        self._lang_en_hover = False
+
     # ------------------------------------------------------------------
     def _layout(self) -> None:
         table_names = list(cfg.TABLE_THEMES.keys())
@@ -127,6 +142,8 @@ class SettingsScreen:
             self._back_hover = self._back_rect.collidepoint(event.pos)
             self._music_mute_hover = self._music_mute_rect.collidepoint(event.pos)
             self._sfx_mute_hover = self._sfx_mute_rect.collidepoint(event.pos)
+            self._lang_es_hover = self._lang_es_rect.collidepoint(event.pos)
+            self._lang_en_hover = self._lang_en_rect.collidepoint(event.pos)
             if self._dragging == "music":
                 self._set_music_volume(self._value_from_x(self._music_track, event.pos[0]))
             elif self._dragging == "sfx":
@@ -141,6 +158,12 @@ class SettingsScreen:
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if self._back_rect.collidepoint(event.pos):
                 self._done = True
+                return
+            if self._lang_es_rect.collidepoint(event.pos):
+                self._choose_language("es")
+                return
+            if self._lang_en_rect.collidepoint(event.pos):
+                self._choose_language("en")
                 return
             for name, r in self._table_rects:
                 if r.collidepoint(event.pos):
@@ -172,6 +195,13 @@ class SettingsScreen:
     def _choose_card_back(self, name: str) -> None:
         if cfg.apply_card_back_theme(name):
             self.app_settings.set("card_back_theme", name)
+
+    def _choose_language(self, lang: str) -> None:
+        if lang not in ("es", "en") or lang == self._lang:
+            return
+        self._lang = lang
+        cfg.LANGUAGE = lang
+        self.app_settings.set("language", lang)
 
     # ------------------------------------------------------------------
     # Audio (Fase 16)
@@ -215,27 +245,49 @@ class SettingsScreen:
         surf = self.screen
         surf.fill(cfg.COLOR_BG)
 
-        title = self._font_title.render("Ajustes", True, cfg.COLOR_GOLD)
+        title = self._font_title.render(i18n.t("menu.settings_button"), True, cfg.COLOR_GOLD)
         surf.blit(title, (self.sw // 2 - title.get_width() // 2, 50))
 
-        sect1 = self._font_section.render("Mesa", True, cfg.COLOR_TEXT)
+        self._draw_language_toggle(surf)
+
+        sect1 = self._font_section.render(i18n.t("settings.table_section"), True, cfg.COLOR_TEXT)
         surf.blit(sect1, (self.sw // 2 - sect1.get_width() // 2, self._row1_y - 34))
         for name, r in self._table_rects:
             self._draw_table_swatch(surf, name, r)
 
-        sect2 = self._font_section.render("Reverso de cartas", True, cfg.COLOR_TEXT)
+        sect2 = self._font_section.render(i18n.t("settings.card_back_section"), True, cfg.COLOR_TEXT)
         surf.blit(sect2, (self.sw // 2 - sect2.get_width() // 2, self._row2_y - 34))
         for name, r in self._back_card_rects:
             self._draw_card_back_swatch(surf, name, r)
 
-        sect3 = self._font_section.render("Audio", True, cfg.COLOR_TEXT)
+        sect3 = self._font_section.render(i18n.t("settings.audio_section"), True, cfg.COLOR_TEXT)
         surf.blit(sect3, (self.sw // 2 - sect3.get_width() // 2, self._row3_y - 34))
-        self._draw_audio_row(surf, "Música", self._music_track, self._music_mute_rect,
+        self._draw_audio_row(surf, i18n.t("settings.music_label"), self._music_track, self._music_mute_rect,
                               self._music_vol, self._music_on, self._music_mute_hover)
-        self._draw_audio_row(surf, "Efectos", self._sfx_track, self._sfx_mute_rect,
+        self._draw_audio_row(surf, i18n.t("settings.sfx_label"), self._sfx_track, self._sfx_mute_rect,
                               self._sfx_vol, self._sfx_on, self._sfx_mute_hover)
 
         self._draw_back(surf)
+
+    def _draw_language_toggle(self, surf: pygame.Surface) -> None:
+        lbl = self._font_small.render(i18n.t("settings.language_section"), True, (140, 140, 140))
+        surf.blit(lbl, (self._lang_es_rect.x - lbl.get_width() - 10,
+                         self._lang_es_rect.centery - lbl.get_height() // 2))
+        for lang, rect, hover, text in (
+            ("es", self._lang_es_rect, self._lang_es_hover, "ES"),
+            ("en", self._lang_en_rect, self._lang_en_hover, "EN"),
+        ):
+            active = (lang == self._lang)
+            if active:
+                bg, border, col = (60, 45, 10), cfg.COLOR_GOLD, cfg.COLOR_GOLD
+            else:
+                bg = (20, 15, 0)
+                border = cfg.COLOR_GOLD if hover else (110, 110, 110)
+                col = (220, 220, 220) if hover else (150, 150, 150)
+            pygame.draw.rect(surf, bg, rect, border_radius=8)
+            pygame.draw.rect(surf, border, rect, 2 if active else 1, border_radius=8)
+            t = self._font_label.render(text, True, col)
+            surf.blit(t, (rect.centerx - t.get_width() // 2, rect.centery - t.get_height() // 2))
 
     def _draw_audio_row(self, surf: pygame.Surface, label: str, track: pygame.Rect,
                          mute_rect: pygame.Rect, vol: float, on: bool, mute_hover: bool) -> None:
@@ -266,7 +318,7 @@ class SettingsScreen:
         pygame.draw.circle(surf, knob_col, (knob_x, track.centery), _KNOB_R)
         pygame.draw.circle(surf, (20, 20, 20), (knob_x, track.centery), _KNOB_R, 1)
 
-        pct = self._font_small.render(f"{int(round(vol * 100))}%" if on else "Silenciado",
+        pct = self._font_small.render(f"{int(round(vol * 100))}%" if on else i18n.t("settings.muted"),
                                        True, col)
         surf.blit(pct, (track.right + 14, track.centery - pct.get_height() // 2))
 
@@ -285,7 +337,7 @@ class SettingsScreen:
             pygame.draw.circle(surf, cfg.COLOR_GOLD, check_bg.center, 11)
             icons.check_mark(surf, *check_bg.center, 11, (20, 20, 20), width=2)
 
-        lbl = self._font_label.render(theme["label"], True, cfg.COLOR_TEXT)
+        lbl = self._font_label.render(i18n.table_theme_label(name, theme["label"]), True, cfg.COLOR_TEXT)
         surf.blit(lbl, (r.centerx - lbl.get_width() // 2, r.bottom + 8))
 
     def _draw_card_back_swatch(self, surf: pygame.Surface, name: str, r: pygame.Rect) -> None:
@@ -315,17 +367,15 @@ class SettingsScreen:
             pygame.draw.circle(surf, cfg.COLOR_GOLD, check_bg.center, 11)
             icons.check_mark(surf, *check_bg.center, 11, (20, 20, 20), width=2)
 
-        lbl = self._font_label.render(theme["label"], True, cfg.COLOR_TEXT)
+        lbl = self._font_label.render(i18n.card_back_label(name, theme["label"]), True, cfg.COLOR_TEXT)
         surf.blit(lbl, (r.centerx - lbl.get_width() // 2, r.bottom + 8))
 
     def _draw_back(self, surf: pygame.Surface) -> None:
         back_col = cfg.COLOR_GOLD if self._back_hover else (150, 150, 150)
         pygame.draw.rect(surf, (20, 15, 0), self._back_rect, border_radius=10)
         pygame.draw.rect(surf, back_col, self._back_rect, 2, border_radius=10)
-        back_txt = self._font_label.render("Volver", True, back_col)
+        back_txt = self._font_label.render(i18n.t("menu.back_button"), True, back_col)
         surf.blit(back_txt, (self._back_rect.centerx - back_txt.get_width() // 2,
                               self._back_rect.centery - back_txt.get_height() // 2))
-        hint = self._font_small.render(
-            "Click para aplicar al instante · arrastra los sliders de volumen · Esc/Volver para salir",
-            True, (90, 90, 90))
+        hint = self._font_small.render(i18n.t("settings.hint"), True, (90, 90, 90))
         surf.blit(hint, (self.sw // 2 - hint.get_width() // 2, self.sh - 24))

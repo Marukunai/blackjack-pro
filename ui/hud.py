@@ -8,23 +8,35 @@ import math
 import pygame
 from typing import Optional
 from config import settings as cfg
+from config import i18n
 from ui import icons
 from ai.basic_strategy import get_basic_strategy, ACTION_COLOR, BasicAction
 from ai.card_counter import HiLoCounter
 
 
-# Mapa de BasicAction → texto legible
-ACTION_LABELS = {
-    BasicAction.H:  "Hit",
-    BasicAction.S:  "Stand",
-    BasicAction.D:  "Double (si no, Hit)",
-    BasicAction.DS: "Double (si no, Stand)",
-    BasicAction.P:  "Split",
-    BasicAction.PH: "Split (si no, Hit)",
-    BasicAction.R:  "Surrender (si no, Hit)",
-    BasicAction.RS: "Surrender (si no, Stand)",
-    BasicAction.RP: "Surrender (si no, Split)",
+# Mapa de BasicAction → clave de i18n (Hit/Stand/Split son términos de
+# casino que ya se dejan en inglés en los dos idiomas -- solo la parte
+# "(si no, ...)" se traduce; ver ACTION_LABELS() más abajo).
+_ACTION_LABEL_KEYS = {
+    BasicAction.D:  "hud.action_double_or_hit",
+    BasicAction.DS: "hud.action_double_or_stand",
+    BasicAction.PH: "hud.action_split_or_hit",
+    BasicAction.R:  "hud.action_surrender_or_hit",
+    BasicAction.RS: "hud.action_surrender_or_stand",
+    BasicAction.RP: "hud.action_surrender_or_split",
 }
+_ACTION_LABEL_PLAIN = {
+    BasicAction.H: "Hit",
+    BasicAction.S: "Stand",
+    BasicAction.P: "Split",
+}
+
+
+def _action_label(action) -> str:
+    if action in _ACTION_LABEL_PLAIN:
+        return _ACTION_LABEL_PLAIN[action]
+    key = _ACTION_LABEL_KEYS.get(action)
+    return i18n.t(key) if key else action.value
 
 # Mapa BasicAction → color RGB
 ACTION_RGB = {
@@ -107,6 +119,14 @@ class HUD:
         en la fuente del sistema."""
         self._result_banner = (text, color, 120, icon)
 
+    def clear_transient(self) -> None:
+        """Descarta mensajes flotantes y el banner de resultado (GANASTE/
+        PERDISTE/etc.) que todavía no hayan terminado de desvanecerse --
+        para no dejarlos asomando bajo una pantalla nueva a pantalla
+        completa (Game Over, fin de Desafío) que se dibuja justo encima."""
+        self._messages.clear()
+        self._result_banner = None
+
     def toggle_stats(self) -> None:
         self._show_stats = not self._show_stats
 
@@ -129,8 +149,15 @@ class HUD:
              engine=None,
              counter: Optional[HiLoCounter] = None,
              unlocked_achievements: Optional[set] = None,
-             training_stats: Optional[tuple] = None) -> None:
+             training_stats: Optional[tuple] = None,
+             challenge=None) -> None:
         self._ensure_fonts()
+
+        # Banner de Desafío activo (Fase 25) -- arriba-centro, igual que
+        # ocuparía la tira de asientos multijugador (con la que nunca
+        # coincide: los desafíos son siempre en solitario).
+        if challenge is not None and engine is not None:
+            self._draw_challenge_banner(surf, challenge, engine)
 
         # Mensajes flotantes
         for m in self._messages:
@@ -185,6 +212,46 @@ class HUD:
         if self._show_achievements:
             self._draw_achievements_panel(surf, unlocked_achievements or set())
 
+    def _draw_challenge_banner(self, surf: pygame.Surface, challenge, engine) -> None:
+        """Banner fijo arriba-centro con el progreso del Desafío activo:
+        nombre, el objetivo en cifras (Challenge.progress_label) y una
+        barra de progreso -- de un vistazo, sin abrir ningún panel."""
+        stats = engine.player.stats
+        chips = engine.player.chips
+        box_w, box_h = 380, 62
+        x = self.sw // 2 - box_w // 2
+        y = 8
+
+        box = pygame.Surface((box_w, box_h), pygame.SRCALPHA)
+        pygame.draw.rect(box, (0, 0, 0, 150), box.get_rect(), border_radius=10)
+        pygame.draw.rect(box, (*challenge.color, 220), box.get_rect(), 2, border_radius=10)
+        surf.blit(box, (x, y))
+
+        icon_cx, icon_cy = x + 24, y + box_h // 2
+        icons.draw_suit(surf, challenge.icon, icon_cx, icon_cy, 20, challenge.color)
+
+        left = x + 46
+        challenge_name, _ = i18n.challenge_text(challenge)
+        name_s = self._font_hint.render(challenge_name, True, challenge.color)
+        surf.blit(name_s, (left, y + 6))
+
+        hands_s = self._font_small.render(
+            i18n.t("hud.challenge_hands_progress", played=stats.hands_played, limit=challenge.hand_limit),
+            True, (150, 150, 150))
+        surf.blit(hands_s, (x + box_w - hands_s.get_width() - 12, y + 8))
+
+        label_s = self._font_small.render(
+            challenge.progress_label(stats, chips), True, (200, 200, 200))
+        surf.blit(label_s, (left, y + 26))
+
+        bar_x, bar_y, bar_w, bar_h = left, y + 46, box_w - (left - x) - 12, 8
+        pygame.draw.rect(surf, (40, 40, 40), (bar_x, bar_y, bar_w, bar_h), border_radius=4)
+        frac = challenge.progress(stats, chips)
+        fill_w = int(bar_w * frac)
+        if fill_w > 0:
+            pygame.draw.rect(surf, challenge.color, (bar_x, bar_y, fill_w, bar_h), border_radius=4)
+        pygame.draw.rect(surf, (120, 120, 120), (bar_x, bar_y, bar_w, bar_h), 1, border_radius=4)
+
     # ------------------------------------------------------------------
     # Sub-draws
     # ------------------------------------------------------------------
@@ -200,12 +267,12 @@ class HUD:
         except Exception:
             return
 
-        label = ACTION_LABELS.get(hint, hint.value)
+        label = _action_label(hint)
         color = ACTION_RGB.get(hint, (200, 200, 200))
 
         # Caja de hint
         padding = 8
-        text_s = self._font_hint.render(f"Estrategia: {label}", True, color)
+        text_s = self._font_hint.render(i18n.t("hud.strategy_hint", label=label), True, color)
         box_w = text_s.get_width() + padding * 2
         box_h = text_s.get_height() + padding * 2
         x = self.sw - box_w - 14
@@ -222,7 +289,7 @@ class HUD:
         visible) con el acierto acumulado de la sesión de entrenamiento:
         cuántas jugadas han coincidido con la estrategia básica."""
         pct = (correct / total * 100) if total else 0.0
-        text = f"Entrenamiento: {correct}/{total} ({pct:.0f}%)"
+        text = i18n.t("hud.training_badge", correct=correct, total=total, pct=pct)
         color = (80, 220, 80) if (total == 0 or pct >= 80) else (
             (220, 150, 0) if pct >= 50 else (220, 60, 60))
 
@@ -281,31 +348,72 @@ class HUD:
             surf.blit(s, (x + padding, cy))
             cy += s.get_height() + 2
 
+    # Fase 24: categorías del registro mano-a-mano de la sesión
+    # (SessionStats.hand_log), compartidas por la barra de distribución y
+    # la leyenda -- el orden importa, es el orden en que se dibuja la barra.
+    _RESULT_CATEGORIES = ["blackjack", "win", "push", "loss", "bust", "surrender"]
+
+    @staticmethod
+    def _category_color(tag: str) -> tuple:
+        return {
+            "blackjack": cfg.COLOR_BJ,
+            "win":       cfg.COLOR_WIN,
+            "push":      cfg.COLOR_PUSH,
+            "loss":      cfg.COLOR_LOSE,
+            "bust":      (230, 140, 40),
+            "surrender": (160, 110, 200),
+        }[tag]
+
+    @staticmethod
+    def _category_label(tag: str) -> str:
+        return i18n.t({
+            "blackjack": "hud.category_blackjack",
+            "win":       "hud.category_win",
+            "push":      "hud.category_push",
+            "loss":      "hud.category_loss",
+            "bust":      "hud.category_bust",
+            "surrender": "hud.category_surrender",
+        }[tag])
+
     def _draw_stats_panel(self, surf: pygame.Surface, engine) -> None:
         s = engine.player.stats
         DIVIDER = None   # marcador: dibuja una línea en vez de texto
         lines = [
-            f"Jugador: {engine.player.name}",
-            f"Fichas:  {int(engine.player.chips)}",
+            i18n.t("hud.stat_player", name=engine.player.name),
+            i18n.t("hud.stat_chips", chips=int(engine.player.chips)),
             DIVIDER,
-            f"Manos:   {s.hands_played}",
-            f"W / L / P: {s.hands_won} / {s.hands_lost} / {s.hands_push}",
-            f"Winrate: {s.win_rate:.1%}",
-            f"ROI:     {s.roi:+.1%}",
-            f"Neto:    {s.net_profit:+.0f}",
+            i18n.t("hud.stat_hands", n=s.hands_played),
+            i18n.t("hud.stat_wlp", w=s.hands_won, l=s.hands_lost, p=s.hands_push),
+            i18n.t("hud.stat_winrate", pct=s.win_rate),
+            i18n.t("hud.stat_roi", roi=s.roi),
+            i18n.t("hud.stat_net", net=s.net_profit),
             DIVIDER,
-            f"Blackjacks: {s.blackjacks}",
-            f"Busts:      {s.busts}",
-            f"Mejor racha: +{s.best_streak}",
+            i18n.t("hud.stat_blackjacks", n=s.blackjacks),
+            i18n.t("hud.stat_busts", n=s.busts),
+            i18n.t("hud.stat_best_streak", n=s.best_streak),
         ]
         padding = 10
         divider_h = 9
+        chart_w = 300   # ancho de los dos gráficos nuevos (Fase 24)
         line_surfs = [None if l is DIVIDER else self._font_stats.render(l, True, cfg.COLOR_TEXT)
                       for l in lines]
         text_widths = [ls.get_width() for ls in line_surfs if ls is not None]
-        box_w = (max(text_widths) if text_widths else 100) + padding * 2
-        box_h = sum((ls.get_height() + 3) if ls is not None else divider_h
-                    for ls in line_surfs) + padding * 2
+        text_h = sum((ls.get_height() + 3) if ls is not None else divider_h
+                     for ls in line_surfs)
+
+        has_hands = bool(s.hand_log)
+        charts_h = 0
+        if has_hands:
+            # divider + título + barra + leyenda (hasta 3 filas de 2 cols)
+            legend_rows = (min(len(self._RESULT_CATEGORIES), len(set(t for t, _ in s.hand_log))) + 1) // 2
+            dist_h = divider_h + 16 + 4 + 16 + 4 + legend_rows * 18
+            # divider + título + sparkline
+            streak_h = divider_h + 16 + 4 + 50
+            charts_h = dist_h + streak_h
+
+        box_w = max((max(text_widths) if text_widths else 100) + padding * 2,
+                    chart_w + padding * 2)
+        box_h = text_h + charts_h + padding * 2
         x = self.sw // 2 - box_w // 2
         y = self.sh // 2 - box_h // 2
 
@@ -322,6 +430,95 @@ class HUD:
                 continue
             surf.blit(ls, (x + padding, cy))
             cy += ls.get_height() + 3
+
+        if has_hands:
+            icons.hline(surf, x + padding, cy + divider_h // 2, box_w - padding * 2, (90, 90, 90))
+            cy += divider_h
+            cy = self._draw_result_distribution(surf, x + padding, cy, chart_w, s.hand_log)
+            icons.hline(surf, x + padding, cy + divider_h // 2, box_w - padding * 2, (90, 90, 90))
+            cy += divider_h
+            self._draw_streak_sparkline(surf, x + padding, cy, chart_w, s.hand_log)
+
+    def _draw_result_distribution(self, surf: pygame.Surface, x: int, y: int,
+                                   w: int, hand_log: list[tuple[str, int]]) -> int:
+        """Barra apilada con la proporción de cada resultado de la sesión
+        (Blackjack/Victoria/Empate/Derrota/Pasada/Rendición) + leyenda con
+        el recuento de cada uno. Devuelve la y justo debajo de lo dibujado."""
+        title = self._font_small.render(i18n.t("hud.result_distribution_title"), True, (170, 170, 170))
+        surf.blit(title, (x, y))
+        y += title.get_height() + 4
+
+        counts = {tag: 0 for tag in self._RESULT_CATEGORIES}
+        for tag, _streak in hand_log:
+            if tag in counts:
+                counts[tag] += 1
+        total = sum(counts.values()) or 1
+
+        bar_h = 16
+        bar_rect = pygame.Rect(x, y, w, bar_h)
+        pygame.draw.rect(surf, (35, 35, 35), bar_rect, border_radius=5)
+        seg_x = x
+        for tag in self._RESULT_CATEGORIES:
+            n = counts[tag]
+            if n <= 0:
+                continue
+            seg_w = round(w * n / total)
+            if seg_w > 0:
+                pygame.draw.rect(surf, self._category_color(tag), (seg_x, y, seg_w, bar_h))
+            seg_x += seg_w
+        pygame.draw.rect(surf, cfg.COLOR_GOLD, bar_rect, 1, border_radius=5)
+        y += bar_h + 4
+
+        present = [t for t in self._RESULT_CATEGORIES if counts[t] > 0]
+        col_w = w // 2
+        for i, tag in enumerate(present):
+            col, row = i % 2, i // 2
+            lx = x + col * col_w
+            ly = y + row * 18
+            pygame.draw.rect(surf, self._category_color(tag), (lx, ly + 3, 10, 10), border_radius=2)
+            label = i18n.t("hud.category_count_label", label=self._category_label(tag), n=counts[tag])
+            ls = self._font_small.render(label, True, (190, 190, 190))
+            surf.blit(ls, (lx + 16, ly))
+        rows = (len(present) + 1) // 2
+        return y + rows * 18
+
+    def _draw_streak_sparkline(self, surf: pygame.Surface, x: int, y: int,
+                                w: int, hand_log: list[tuple[str, int]]) -> int:
+        """Barras verticales con la racha (+ ganando / - perdiendo) tras
+        cada mano de la sesión, las últimas ~30 -- de un vistazo se ve si
+        la sesión va a rachas o muy plana. Devuelve la y justo debajo."""
+        chart_h = 50
+        max_bars = 30
+        recent = hand_log[-max_bars:]
+        current = hand_log[-1][1] if hand_log else 0
+
+        title = self._font_small.render(
+            i18n.t("hud.streak_sparkline_title", current=current), True, (170, 170, 170))
+        surf.blit(title, (x, y))
+        y += title.get_height() + 4
+
+        baseline = y + chart_h // 2
+        icons.hline(surf, x, baseline, w, (70, 70, 70))
+
+        n = len(recent)
+        if n > 0:
+            scale = 8   # racha considerada "a tope de barra" (clamp visual)
+            half_h = (chart_h // 2) - 2
+            bar_w = max(3, w // n - 2)
+            gap = (w - bar_w * n) / n if n else 0
+            bx = x
+            for _tag, streak in recent:
+                clamped = max(-scale, min(scale, streak))
+                seg_h = int(abs(clamped) / scale * half_h)
+                color = cfg.COLOR_WIN if streak > 0 else (cfg.COLOR_LOSE if streak < 0 else (120, 120, 120))
+                if seg_h <= 0:
+                    pygame.draw.rect(surf, color, (int(bx), baseline - 1, bar_w, 2))
+                elif streak > 0:
+                    pygame.draw.rect(surf, color, (int(bx), baseline - seg_h, bar_w, seg_h))
+                else:
+                    pygame.draw.rect(surf, color, (int(bx), baseline, bar_w, seg_h))
+                bx += bar_w + gap
+        return y + chart_h
 
     def _draw_achievements_panel(self, surf: pygame.Surface, unlocked_ids: set) -> None:
         from engine.achievements import ACHIEVEMENTS
@@ -344,7 +541,8 @@ class HUD:
 
         n_unlocked = len(unlocked_ids)
         title_font = pygame.font.SysFont(None, 24, bold=True)
-        title = title_font.render(f"Logros  ({n_unlocked}/{len(ACHIEVEMENTS)})", True, cfg.COLOR_GOLD)
+        title = title_font.render(
+            i18n.t("hud.achievements_title", n=n_unlocked, total=len(ACHIEVEMENTS)), True, cfg.COLOR_GOLD)
         surf.blit(title, (x + box_w // 2 - title.get_width() // 2, y + 10))
 
         top = y + 38
@@ -378,8 +576,9 @@ class HUD:
 
             name_col = cfg.COLOR_TEXT if unlocked else (110, 110, 110)
             desc_col = (150, 150, 150) if unlocked else (75, 75, 75)
-            name_s = self._font_stats.render(ach.name, True, name_col)
-            desc_s = self._font_small.render(ach.description, True, desc_col)
+            ach_name, ach_desc = i18n.achievement_text(ach)
+            name_s = self._font_stats.render(ach_name, True, name_col)
+            desc_s = self._font_small.render(ach_desc, True, desc_col)
             tx = cx0 + icon_r * 2 + 10
             surf.blit(name_s, (tx, cy0 + 2))
             surf.blit(desc_s, (tx, cy0 + 2 + name_s.get_height()))

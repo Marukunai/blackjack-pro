@@ -12,6 +12,7 @@ import pygame
 from typing import Optional
 
 from config import settings as cfg
+from config import i18n
 from engine.profile_store import get_store
 from ui import icons
 from ui.hand_history import HandHistoryScreen
@@ -80,7 +81,7 @@ class ProfileSelect:
         # mesa en esta sesión (multijugador local): la misma persona no
         # puede ocupar dos asientos a la vez.
         self._exclude_ids = exclude_ids or set()
-        self._title_text = title or "¿Quién juega?"
+        self._title_text = title or i18n.t("profile.title_default")
 
         self._font_title = pygame.font.SysFont(None, 48, bold=True)
         self._font_sub   = pygame.font.SysFont(None, 24, bold=True)
@@ -253,7 +254,7 @@ class ProfileSelect:
     def _confirm_create(self) -> None:
         name = self._name_input.strip()
         if not name:
-            self._error_msg = "Escribe un nombre para el perfil."
+            self._error_msg = i18n.t("profile.error_empty_name")
             return
         shape, color = AVATARS[self._avatar_idx]
         try:
@@ -292,9 +293,9 @@ class ProfileSelect:
     def _draw_list(self, surf: pygame.Surface) -> None:
         title = self._font_title.render(self._title_text, True, cfg.COLOR_GOLD)
         surf.blit(title, (self.sw // 2 - title.get_width() // 2, 60))
-        sub_text = ("Perfiles locales — sin contraseña, cada uno con su propio historial"
+        sub_text = (i18n.t("profile.subtitle_default")
                     if not self._exclude_ids else
-                    "Elige quién se sienta en el siguiente asiento")
+                    i18n.t("profile.subtitle_seat"))
         sub = self._font_small.render(sub_text, True, (150, 150, 150))
         surf.blit(sub, (self.sw // 2 - sub.get_width() // 2, 112))
 
@@ -307,7 +308,7 @@ class ProfileSelect:
             surf.blit(box, (self._board_rect.x, self._board_rect.y))
             board_col = cfg.COLOR_GOLD if self._board_hover else (200, 200, 200)
             icons.bars_icon(surf, self._board_rect.x + 20, self._board_rect.centery, 13, board_col)
-            board_txt = self._font_small.render("Comparativa", True, board_col)
+            board_txt = self._font_small.render(i18n.t("profile.leaderboard_button"), True, board_col)
             surf.blit(board_txt, (self._board_rect.x + 36, self._board_rect.centery - board_txt.get_height() // 2))
 
         for row in self._rows:
@@ -320,15 +321,12 @@ class ProfileSelect:
             pygame.draw.rect(box, cfg.COLOR_GOLD if self._new_hover else (110, 110, 110),
                               box.get_rect(), 1, border_radius=10)
             surf.blit(box, (self._new_rect.x, self._new_rect.y))
-            plus = self._font_sub.render("+  Nuevo perfil", True,
+            plus = self._font_sub.render(i18n.t("profile.new_profile_button"), True,
                                           cfg.COLOR_GOLD if self._new_hover else (200, 200, 200))
             surf.blit(plus, (self._new_rect.centerx - plus.get_width() // 2,
                               self._new_rect.centery - plus.get_height() // 2))
 
-        hint = self._font_small.render(
-            "Click en un perfil para continuar · lista: ver historial · papelera: borrar · "
-            "N: nuevo perfil · Comparativa: comparar perfiles",
-            True, (90, 90, 90))
+        hint = self._font_small.render(i18n.t("profile.list_hint"), True, (90, 90, 90))
         surf.blit(hint, (self.sw // 2 - hint.get_width() // 2, self.sh - 28))
 
     def _draw_row(self, surf: pygame.Surface, row: "_Row") -> None:
@@ -355,10 +353,10 @@ class ProfileSelect:
         # por el aviso -- en vez de superponer texto extra a la derecha,
         # que pisaba el icono de historial recién añadido.
         if confirming:
-            info = self._font_small.render("¿Borrar? Click de nuevo para confirmar", True, cfg.COLOR_LOSE)
+            info = self._font_small.render(i18n.t("profile.confirm_delete"), True, cfg.COLOR_LOSE)
         else:
             info = self._font_small.render(
-                f"{data['chips']:.0f} fichas · {data['hands_played']} manos jugadas",
+                i18n.t("profile.chips_hands_info", chips=data["chips"], hands=data["hands_played"]),
                 True, (150, 150, 150))
         surf.blit(info, (r.x + 64, r.y + 30))
 
@@ -371,11 +369,11 @@ class ProfileSelect:
         icons.cross_mark(surf, t.centerx, t.centery, 14, trash_col, width=2)
 
     def _draw_create(self, surf: pygame.Surface) -> None:
-        title = self._font_title.render("Nuevo perfil", True, cfg.COLOR_GOLD)
+        title = self._font_title.render(i18n.t("profile.create_title"), True, cfg.COLOR_GOLD)
         surf.blit(title, (self.sw // 2 - title.get_width() // 2, 60))
 
         name_rect = pygame.Rect(self.sw // 2 - 150, 150, 300, 36)
-        label = self._font_body.render("Nombre:", True, cfg.COLOR_TEXT)
+        label = self._font_body.render(i18n.t("profile.name_label"), True, cfg.COLOR_TEXT)
         surf.blit(label, (name_rect.x, name_rect.y - 24))
         pygame.draw.rect(surf, (20, 20, 20), name_rect, border_radius=6)
         pygame.draw.rect(surf, cfg.COLOR_GOLD, name_rect, 1, border_radius=6)
@@ -383,7 +381,7 @@ class ProfileSelect:
         name_surf = self._font_body.render(disp, True, cfg.COLOR_TEXT)
         surf.blit(name_surf, (name_rect.x + 8, name_rect.y + 8))
 
-        avatar_lbl = self._font_body.render("Avatar:", True, cfg.COLOR_TEXT)
+        avatar_lbl = self._font_body.render(i18n.t("profile.avatar_label"), True, cfg.COLOR_TEXT)
         surf.blit(avatar_lbl, (self.sw // 2 - avatar_lbl.get_width() // 2, self.sh // 2 - 46))
 
         for i, r in enumerate(self._avatar_rects()):
@@ -398,13 +396,13 @@ class ProfileSelect:
 
         pygame.draw.rect(surf, (20, 15, 0), self._create_btn, border_radius=10)
         pygame.draw.rect(surf, cfg.COLOR_GOLD, self._create_btn, 2, border_radius=10)
-        c_txt = self._font_sub.render("Crear", True, cfg.COLOR_GOLD)
+        c_txt = self._font_sub.render(i18n.t("profile.create_button"), True, cfg.COLOR_GOLD)
         surf.blit(c_txt, (self._create_btn.centerx - c_txt.get_width() // 2,
                            self._create_btn.centery - c_txt.get_height() // 2))
 
         pygame.draw.rect(surf, (20, 20, 20), self._cancel_btn, border_radius=10)
         pygame.draw.rect(surf, (120, 120, 120), self._cancel_btn, 1, border_radius=10)
-        x_txt = self._font_sub.render("Cancelar", True, (180, 180, 180))
+        x_txt = self._font_sub.render(i18n.t("profile.cancel_button"), True, (180, 180, 180))
         surf.blit(x_txt, (self._cancel_btn.centerx - x_txt.get_width() // 2,
                            self._cancel_btn.centery - x_txt.get_height() // 2))
 
@@ -412,9 +410,7 @@ class ProfileSelect:
             err = self._font_small.render(self._error_msg, True, cfg.COLOR_LOSE)
             surf.blit(err, (self.sw // 2 - err.get_width() // 2, btn_y - 26))
 
-        hint = self._font_small.render(
-            "Flechas para elegir avatar · Enter para crear · Esc para volver",
-            True, (90, 90, 90))
+        hint = self._font_small.render(i18n.t("profile.create_hint"), True, (90, 90, 90))
         surf.blit(hint, (self.sw // 2 - hint.get_width() // 2, self.sh - 28))
 
 
@@ -485,7 +481,7 @@ class SeatConfirmScreen:
         surf = self.screen
         surf.fill(cfg.COLOR_BG)
 
-        title = self._font_title.render("Jugadores en la mesa", True, cfg.COLOR_GOLD)
+        title = self._font_title.render(i18n.t("profile.seats_title"), True, cfg.COLOR_GOLD)
         surf.blit(title, (self.sw // 2 - title.get_width() // 2, 70))
 
         # Fila de asientos ya confirmados
@@ -510,7 +506,7 @@ class SeatConfirmScreen:
 
             lbl = self._font_seat.render(name, True, cfg.COLOR_TEXT)
             surf.blit(lbl, (r.x + 60, r.y + 12))
-            sub = self._font_small.render(f"Asiento {i + 1}", True, (150, 150, 150))
+            sub = self._font_small.render(i18n.t("profile.seat_number", n=i + 1), True, (150, 150, 150))
             surf.blit(sub, (r.x + 60, r.y + 36))
 
         btn_y = y0 + row_h + 60
@@ -521,19 +517,19 @@ class SeatConfirmScreen:
             col = cfg.COLOR_GOLD if self._add_hover else (140, 115, 40)
             pygame.draw.rect(surf, (20, 15, 0), self._add_btn, border_radius=10)
             pygame.draw.rect(surf, col, self._add_btn, 2, border_radius=10)
-            t = self._font_seat.render("+  Añadir jugador", True, col)
+            t = self._font_seat.render(i18n.t("profile.add_player_button"), True, col)
             surf.blit(t, (self._add_btn.centerx - t.get_width() // 2,
                           self._add_btn.centery - t.get_height() // 2))
         else:
             self._add_btn = pygame.Rect(0, 0, 0, 0)
-            note = self._font_small.render("Máximo 3 jugadores en la mesa", True, (120, 120, 120))
+            note = self._font_small.render(i18n.t("profile.max_players_note"), True, (120, 120, 120))
             surf.blit(note, (self.sw // 2 - 260 + 120 - note.get_width() // 2, btn_y + 18))
 
         self._play_btn = pygame.Rect(self.sw // 2 + 20, btn_y, 240, 52)
         col2 = cfg.COLOR_GOLD if self._play_hover else (140, 115, 40)
         pygame.draw.rect(surf, (20, 15, 0), self._play_btn, border_radius=10)
         pygame.draw.rect(surf, col2, self._play_btn, 2, border_radius=10)
-        label = "Jugar" if len(self.seats) > 1 else "Jugar en solitario"
+        label = i18n.t("profile.play_button") if len(self.seats) > 1 else i18n.t("profile.play_solo_button")
         t2 = self._font_seat.render(label, True, col2)
         icons.triangle_right(surf, self._play_btn.centerx - t2.get_width() // 2 - 22,
                               self._play_btn.centery, 12, col2)
@@ -541,6 +537,6 @@ class SeatConfirmScreen:
                        self._play_btn.centery - t2.get_height() // 2))
 
         hint = self._font_small.render(
-            "Enter para jugar" + (" · A para añadir otro jugador" if can_add else ""),
+            i18n.t("profile.seats_hint_play") + (i18n.t("profile.seats_hint_add") if can_add else ""),
             True, (90, 90, 90))
         surf.blit(hint, (self.sw // 2 - hint.get_width() // 2, self.sh - 28))

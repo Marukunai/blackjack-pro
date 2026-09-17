@@ -6,6 +6,7 @@ from __future__ import annotations
 import pygame
 from typing import Optional, Callable
 from config import settings as cfg
+from config import i18n
 
 
 # ── Paleta de botones ────────────────────────────────────────────────
@@ -174,8 +175,8 @@ class InsuranceBar:
 
     def __init__(self, screen_w: int, screen_h: int,
                  callback: Callable, is_even_money: bool = False) -> None:
-        label_yes = "Even Money" if is_even_money else "Seguro (Sí)"
-        label_no  = "No"
+        label_yes = "Even Money" if is_even_money else i18n.t("insurance.yes")
+        label_no  = i18n.t("insurance.no")
         gap = 20
         y = screen_h - BTN_H - 18
         cx = screen_w // 2

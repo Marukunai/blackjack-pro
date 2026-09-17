@@ -5,6 +5,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from config import i18n
+
 if TYPE_CHECKING:
     from core.card import Card
     from core.deck import Deck
@@ -93,17 +95,17 @@ class HiLoCounter:
     def count_label(self) -> str:
         tc = self.true_count_rounded
         if tc <= -2:
-            return "Muy frío 🥶"
+            return i18n.t("counter.very_cold")
         elif tc == -1:
-            return "Frío ❄️"
+            return i18n.t("counter.cold")
         elif tc == 0:
-            return "Neutral ➖"
+            return i18n.t("counter.neutral")
         elif tc == 1:
-            return "Tibio 🌡️"
+            return i18n.t("counter.warm")
         elif tc in (2, 3):
-            return "Caliente 🔥"
+            return i18n.t("counter.hot")
         else:
-            return "¡Muy caliente! 🌋"
+            return i18n.t("counter.very_hot")
 
     @property
     def count_color(self) -> str:

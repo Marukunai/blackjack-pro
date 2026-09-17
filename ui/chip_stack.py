@@ -9,6 +9,7 @@ import math
 import pygame
 from typing import Callable, Optional
 from config import settings as cfg
+from config import i18n
 
 CHIP_DEFS = [
     (5,    (230, 230, 230), (60,  60,  60)),
@@ -319,6 +320,6 @@ class ChipTray:
         # Hint click derecho
         if current_bet > 0 and self._enabled:
             hint_font = pygame.font.SysFont(None, 16)
-            hint = hint_font.render("Click derecho -> devolver última ficha", True, (90, 90, 90))
+            hint = hint_font.render(i18n.t("chipstack.undo_hint"), True, (90, 90, 90))
             y = self._chips[0].center[1] - CHIP_R - 22
             surf.blit(hint, (self._sw//2 - hint.get_width()//2, y))

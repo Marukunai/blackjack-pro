@@ -118,14 +118,26 @@ def apply_payouts(
                 stats.record_win(payout.net)
                 if payout.result == RoundResult.BLACKJACK_WIN:
                     stats.blackjacks += 1
+                    tag = "blackjack"
+                else:
+                    tag = "win"
             case RoundResult.LOSS:
                 stats.record_loss(abs(payout.net))
                 if hand.is_bust:
                     stats.busts += 1
+                    tag = "bust"
+                else:
+                    tag = "loss"
             case RoundResult.PUSH:
                 stats.record_push()
+                tag = "push"
             case RoundResult.SURRENDER:
                 stats.record_surrender(payout.returned, hand.bet)
+                tag = "surrender"
+            case _:
+                tag = None
+        if tag is not None:
+            stats.hand_log.append((tag, stats.current_streak))
 
     # Seguro
     resolve_insurance(player, dealer, rules)

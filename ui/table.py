@@ -6,6 +6,7 @@ from __future__ import annotations
 import math
 import pygame
 from config import settings as cfg
+from config import i18n
 from ui import icons
 
 
@@ -221,7 +222,7 @@ class Table:
         self._ensure()
 
         # Etiqueta crupier
-        d_label = self._font_label.render(f"CRUPIER  {dealer_value}", True, cfg.COLOR_TEXT)
+        d_label = self._font_label.render(i18n.t("table.dealer_label", value=dealer_value), True, cfg.COLOR_TEXT)
         surf.blit(d_label, (self.sw // 2 - d_label.get_width() // 2,
                              self.dealer_zone_y - 22))
 
@@ -233,7 +234,7 @@ class Table:
             else:
                 section = self.sw // num_hands
                 cx = section * i + section // 2
-            label_text = f"TU MANO  {val_str}"
+            label_text = i18n.t("table.hand_label", value=val_str)
             col = cfg.COLOR_GOLD if active else cfg.COLOR_TEXT
             lbl = self._font_label.render(label_text, True, col)
             lx = cx - lbl.get_width() // 2
@@ -250,7 +251,7 @@ class Table:
         surf.blit(chip_text, (36 + coin_r * 2 + 4, self.sh - 30))
 
         if bet > 0:
-            bet_text = self._font_rules.render(f"Apuesta: {bet}", True, cfg.COLOR_TEXT)
+            bet_text = self._font_rules.render(i18n.t("table.bet_label", bet=bet), True, cfg.COLOR_TEXT)
             surf.blit(bet_text, (36, self.sh - 50))
 
         # HUD inferior derecho

@@ -6,8 +6,10 @@ from __future__ import annotations
 import pygame
 from typing import Optional, Callable
 from config import settings as cfg
+from config import i18n
 from config.rules_presets import PRESETS, get_preset, vegas_strip
 from core.rules import Rules, DealerRule, BlackjackPayout, DoubleRule, SurrenderRule
+from engine.challenges import Challenge
 from ui import icons
 from ui.hand_history import HandHistoryScreen
 
@@ -87,6 +89,12 @@ class MainMenu:
         # confirma "Personalizado..." (None mientras no lo haya hecho).
         self._custom_rules: Optional[Rules] = None
 
+        # Desafío elegido en ChallengeSelect (Fase 25), si el jugador entra
+        # ahí y confirma uno -- en ese caso se cierra el menú al instante
+        # (elegir el desafío YA es "empezar", no hace falta pulsar JUGAR
+        # aparte). None mientras no se haya elegido ninguno.
+        self._chosen_challenge: Optional[Challenge] = None
+
         # Fuentes
         self._font_title  = pygame.font.SysFont(None, 64, bold=True)
         self._font_sub    = pygame.font.SysFont(None, 28, bold=True)
@@ -111,6 +119,14 @@ class MainMenu:
         self._history_rect = pygame.Rect(20, 20, 150, 32)
         self._history_hover = False
 
+        # Botón "Desafíos" (Fase 25), justo debajo de Historial -- solo
+        # tiene sentido en solitario (los 4 desafíos del catálogo están
+        # pensados para un jugador contra la casa, con sus propias fichas
+        # iniciales y límite de manos), así que se oculta si hay más de
+        # un asiento en la mesa.
+        self._challenges_rect = pygame.Rect(20, 60, 150, 32)
+        self._challenges_hover = False
+
         # Botón "Ajustes" (esquina superior derecha, simétrico al de
         # Historial) -- temas visuales y audio, aplicados/persistidos al
         # instante desde ui/settings_screen.py, sin salir del menú.
@@ -122,16 +138,26 @@ class MainMenu:
 
     # ------------------------------------------------------------------
     def _build_preset_items(self) -> None:
+        """Coloca la lista de presets justo DEBAJO de la cabecera fija
+        ("Jugador: X" / separador / "Selecciona el casino:") en vez de
+        centrarla verticalmente en base a cuántos presets haya -- con el
+        centrado antiguo, cada preset nuevo que se añadía al catálogo
+        empujaba la lista entera hacia arriba, hasta llegar a solaparse
+        con esa cabecera (se notó al añadir los presets de la Fase 23:
+        con 9 entradas en vez de 6 el primer item ya invadía la cabecera).
+        Los items también se hicieron algo más compactos (34px en vez de
+        44px) para que quepan con holgura hasta el botón JUGAR."""
         self._preset_items.clear()
-        item_w, item_h, gap = 320, 44, 8
-        total_h = len(self._preset_names) * (item_h + gap) - gap
-        start_y = self.sh // 2 - total_h // 2 + 30
+        item_w, item_h, gap = 320, 34, 6
+        header_bottom = (self.sh // 2 - 148) + 46   # justo bajo "Selecciona el casino:"
+        start_y = header_bottom
         x = self.sw // 2 - item_w // 2
 
         for i, name in enumerate(self._preset_names):
             y = start_y + i * (item_h + gap)
+            display = i18n.t("menu.custom_option") if name == self.CUSTOM_LABEL else i18n.preset_label(name)
             item = MenuItem(
-                text=name, value=name,
+                text=display, value=name,
                 x=x, y=y, w=item_w, h=item_h,
                 font=self._font_body,
                 selected=(i == self._preset_idx),
@@ -139,10 +165,12 @@ class MainMenu:
             self._preset_items.append(item)
 
     # ------------------------------------------------------------------
-    def run(self) -> tuple[str, Optional[Rules]]:
-        """Bucle bloqueante. Devuelve (preset_name, custom_rules) -- el
-        segundo elemento es None salvo que el jugador haya elegido y
-        confirmado "Personalizado...", en cuyo caso preset_name vale
+    def run(self) -> tuple[str, Optional[Rules], Optional[Challenge]]:
+        """Bucle bloqueante. Devuelve (preset_name, custom_rules, challenge).
+        En el caso normal challenge es None; si el jugador eligió y
+        confirmó un Desafío (Fase 25), preset_name/custom_rules no
+        importan (se ignoran) y challenge trae el Challenge elegido. Si
+        eligió y confirmó "Personalizado...", preset_name vale
         "Personalizado" y custom_rules trae el objeto Rules construido a
         mano en RulesEditor."""
         clock = pygame.time.Clock()
@@ -159,9 +187,18 @@ class MainMenu:
             self._draw()
             pygame.display.flip()
 
+        if self._chosen_challenge is not None:
+            return "", None, self._chosen_challenge
         if self._custom_rules is not None:
-            return "Personalizado", self._custom_rules
-        return self._preset_names[self._preset_idx], None
+            return "Personalizado", self._custom_rules, None
+        return self._preset_names[self._preset_idx], None, None
+
+    def _show_challenges(self) -> None:
+        from ui.challenge_select import ChallengeSelect
+        challenge = ChallengeSelect(self.screen).run()
+        if challenge is not None:
+            self._chosen_challenge = challenge
+            self._done = True
 
     def _show_history(self) -> None:
         """Abre el historial de manos de los perfiles sentados en esta
@@ -175,6 +212,12 @@ class MainMenu:
     def _show_settings(self) -> None:
         from ui.settings_screen import SettingsScreen  # import diferido: evita ciclos de import
         SettingsScreen(self.screen, sounds=self._sounds).run()
+        # El idioma pudo cambiar en Ajustes (Fase 26): los MenuItem de
+        # preset llevan su texto ya renderizado como string normal (no
+        # se traducen en cada frame como el resto de la UI), así que hay
+        # que reconstruirlos para que se vean en el idioma nuevo sin
+        # tener que volver a abrir el menú desde cero.
+        self._build_preset_items()
 
     def _confirm_selection(self) -> None:
         """Se llama al pulsar Enter o el botón JUGAR. Si el preset
@@ -198,12 +241,15 @@ class MainMenu:
                 self._confirm_selection()
             elif self._seats and self._history_rect.collidepoint(event.pos):
                 self._show_history()
+            elif len(self._seats) <= 1 and self._challenges_rect.collidepoint(event.pos):
+                self._show_challenges()
             elif self._settings_rect.collidepoint(event.pos):
                 self._show_settings()
 
         if event.type == pygame.MOUSEMOTION:
             self._start_hover = self._start_rect.collidepoint(event.pos)
             self._history_hover = self._history_rect.collidepoint(event.pos)
+            self._challenges_hover = self._challenges_rect.collidepoint(event.pos)
             self._settings_hover = self._settings_rect.collidepoint(event.pos)
 
         if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
@@ -256,7 +302,7 @@ class MainMenu:
 
         # Recordatorio del perfil activo (el nombre ya se eligió en la
         # pantalla anterior — aquí solo se muestra, no se edita)
-        greeting = self._font_sub.render(f"Jugador: {self.player_name}", True, cfg.COLOR_TEXT)
+        greeting = self._font_sub.render(i18n.t("menu.player_label", name=self.player_name), True, cfg.COLOR_TEXT)
         surf.blit(greeting, (self.sw//2 - greeting.get_width()//2, self.sh//2 - 200))
 
         # Separador
@@ -264,7 +310,7 @@ class MainMenu:
         pygame.draw.line(surf, (80, 80, 80), (self.sw//2 - 200, sep_y), (self.sw//2 + 200, sep_y), 1)
 
         # Subtítulo preset
-        preset_lbl = self._font_sub.render("Selecciona el casino:", True, cfg.COLOR_TEXT)
+        preset_lbl = self._font_sub.render(i18n.t("menu.select_casino"), True, cfg.COLOR_TEXT)
         surf.blit(preset_lbl, (self.sw//2 - preset_lbl.get_width()//2, sep_y + 8))
 
         # Items de preset
@@ -279,7 +325,7 @@ class MainMenu:
             if self._custom_rules is not None:
                 info_text = str(self._custom_rules)
             else:
-                info_text = "Pulsa Enter o JUGAR para ajustar tus propias reglas"
+                info_text = i18n.t("menu.custom_hint")
         else:
             info_text = str(get_preset(preset_name))
         info = self._font_small.render(info_text, True, (150, 150, 150))
@@ -290,7 +336,7 @@ class MainMenu:
         start_col = cfg.COLOR_GOLD if self._start_hover else (160, 130, 40)
         pygame.draw.rect(surf, (20, 15, 0), self._start_rect, border_radius=10)
         pygame.draw.rect(surf, start_col, self._start_rect, 2, border_radius=10)
-        start_text = self._font_sub.render("JUGAR", True, start_col)
+        start_text = self._font_sub.render(i18n.t("menu.play_button"), True, start_col)
         icon_gap = 10
         total_w = start_text.get_width() + start_text.get_height() * 0.7 + icon_gap
         tx = self._start_rect.centerx - int(total_w) // 2
@@ -298,11 +344,15 @@ class MainMenu:
         icons.triangle_right(surf, tx, self._start_rect.centery, start_text.get_height() * 0.6, start_col)
         surf.blit(start_text, (tx + start_text.get_height() * 0.7 + icon_gap, ty))
 
-        hint_text = "Flechas arriba/abajo para seleccionar · Enter para jugar"
+        hint_text = i18n.t("menu.hint_base")
         if self._seats:
-            hint_text += " · H: historial"
+            hint_text += i18n.t("menu.hint_history_suffix")
         hint = self._font_small.render(hint_text, True, (80, 80, 80))
         surf.blit(hint, (self.sw//2 - hint.get_width()//2, self.sh - 28))
+
+        # Versión (Fase 25) -- esquina inferior izquierda, discreta.
+        ver = self._font_small.render(f"v{cfg.APP_VERSION}", True, (70, 70, 70))
+        surf.blit(ver, (14, self.sh - ver.get_height() - 10))
 
         # Botón "Historial" -- solo tiene sentido si hay perfiles sentados
         # a la mesa (siempre los hay salvo en algún test manual).
@@ -311,16 +361,27 @@ class MainMenu:
             pygame.draw.rect(surf, (20, 15, 0), self._history_rect, border_radius=8)
             pygame.draw.rect(surf, hist_col, self._history_rect, 1, border_radius=8)
             icons.list_icon(surf, self._history_rect.x + 20, self._history_rect.centery, 9, hist_col)
-            hist_txt = self._font_small.render("Historial", True, hist_col)
+            hist_txt = self._font_small.render(i18n.t("menu.history_button"), True, hist_col)
             surf.blit(hist_txt, (self._history_rect.x + 36,
                                   self._history_rect.centery - hist_txt.get_height() // 2))
+
+        # Botón "Desafíos" (Fase 25) -- solo en solitario (ver comentario
+        # en __init__).
+        if len(self._seats) <= 1:
+            ch_col = cfg.COLOR_GOLD if self._challenges_hover else (140, 140, 140)
+            pygame.draw.rect(surf, (20, 15, 0), self._challenges_rect, border_radius=8)
+            pygame.draw.rect(surf, ch_col, self._challenges_rect, 1, border_radius=8)
+            icons.star(surf, self._challenges_rect.x + 20, self._challenges_rect.centery, 9, ch_col)
+            ch_txt = self._font_small.render(i18n.t("menu.challenges_button"), True, ch_col)
+            surf.blit(ch_txt, (self._challenges_rect.x + 36,
+                                self._challenges_rect.centery - ch_txt.get_height() // 2))
 
         # Botón "Ajustes" (temas visuales, audio) -- siempre visible.
         set_col = cfg.COLOR_GOLD if self._settings_hover else (140, 140, 140)
         pygame.draw.rect(surf, (20, 15, 0), self._settings_rect, border_radius=8)
         pygame.draw.rect(surf, set_col, self._settings_rect, 1, border_radius=8)
         icons.gear_icon(surf, self._settings_rect.x + 20, self._settings_rect.centery, 10, set_col)
-        set_txt = self._font_small.render("Ajustes", True, set_col)
+        set_txt = self._font_small.render(i18n.t("menu.settings_button"), True, set_col)
         surf.blit(set_txt, (self._settings_rect.x + 36,
                              self._settings_rect.centery - set_txt.get_height() // 2))
 
@@ -408,7 +469,7 @@ class _RuleRow:
         surf.blit(box, (self.rect.x, self.rect.y))
 
         label_col = cfg.COLOR_TEXT if self.selected else (170, 170, 170)
-        lbl = self.font.render(self.label, True, label_col)
+        lbl = self.font.render(i18n.t(self.label), True, label_col)
         surf.blit(lbl, (self.rect.x + 10, self.rect.centery - lbl.get_height() // 2))
 
         left_rect, right_rect = self.arrow_rects()
@@ -422,6 +483,10 @@ class _RuleRow:
         surf.blit(val, (val_cx - val.get_width() // 2, self.rect.centery - val.get_height() // 2))
 
 
+def _fmt_yn(v: bool) -> str:
+    return i18n.t("menu.yes") if v else i18n.t("menu.no")
+
+
 class RulesEditor:
     """Pantalla para ajustar a mano cada regla de core.rules.Rules, en vez
     de estar limitado a los presets de casino fijos. Se abre desde
@@ -429,37 +494,48 @@ class RulesEditor:
     que devuelve un objeto Rules al confirmar, o None si se cancela (ESC /
     botón Volver) -- en ese caso el menú anterior no cambia nada."""
 
+    # NOTA (Fase 26): el segundo elemento de cada tupla es ahora una
+    # CLAVE de i18n (no el texto ya en español) -- _RuleRow.draw() la
+    # traduce en cada frame con i18n.t(), así que cambiar el idioma
+    # desde Ajustes se refleja al instante sin reconstruir las filas.
+    # Los `fmt` que antes devolvían texto en español fijo ahora llaman a
+    # i18n.t() por el mismo motivo; los que solo formatean números/signos
+    # ($, %, Sí/No genérico vía _fmt_yn) se dejan igual en los dos idiomas.
     FIELDS: list[tuple[str, str, list, Callable]] = [
-        ("num_decks", "Mazos", [1, 2, 4, 6, 8], lambda v: str(v)),
-        ("penetration", "Penetración del zapato",
+        ("num_decks", "menu.field.num_decks", [1, 2, 4, 6, 8], lambda v: str(v)),
+        ("penetration", "menu.field.penetration",
          [0.5, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85], lambda v: f"{v:.0%}"),
-        ("dealer_rule", "Crupier en soft 17",
+        ("dealer_rule", "menu.field.dealer_rule",
          [DealerRule.STAND_SOFT_17, DealerRule.HIT_SOFT_17],
-         lambda v: "Planta (S17)" if v == DealerRule.STAND_SOFT_17 else "Pide (H17)"),
-        ("blackjack_payout", "Pago de Blackjack",
+         lambda v: i18n.t("menu.dealer_stand_s17") if v == DealerRule.STAND_SOFT_17 else i18n.t("menu.dealer_hit_h17")),
+        ("blackjack_payout", "menu.field.blackjack_payout",
          [BlackjackPayout.THREE_TO_TWO, BlackjackPayout.SIX_TO_FIVE, BlackjackPayout.ONE_TO_ONE],
          lambda v: v.value),
-        ("double_rule", "Doblar permitido con",
+        ("double_rule", "menu.field.double_rule",
          [DoubleRule.ANY_TWO, DoubleRule.NINE_TEN_ELEVEN],
-         lambda v: "Cualquier 2 cartas" if v == DoubleRule.ANY_TWO else "Solo 9, 10 u 11"),
-        ("double_after_split", "Doblar tras split (DAS)", [True, False], lambda v: "Sí" if v else "No"),
-        ("max_splits", "Splits máximos", [0, 1, 2, 3], lambda v: f"{v} (hasta {v + 1} manos)"),
-        ("resplit_aces", "Re-splitear Ases", [True, False], lambda v: "Sí" if v else "No"),
-        ("hit_split_aces", "Pedir tras splitear Ases", [True, False], lambda v: "Sí" if v else "No"),
-        ("surrender_rule", "Rendirse (Surrender)",
+         lambda v: i18n.t("menu.double_any_two") if v == DoubleRule.ANY_TWO else i18n.t("menu.double_9_10_11")),
+        ("double_after_split", "menu.field.double_after_split", [True, False], lambda v: _fmt_yn(v)),
+        ("max_splits", "menu.field.max_splits", [0, 1, 2, 3],
+         lambda v: i18n.t("menu.max_splits_fmt", v=v, n=v + 1)),
+        ("resplit_aces", "menu.field.resplit_aces", [True, False], lambda v: _fmt_yn(v)),
+        ("hit_split_aces", "menu.field.hit_split_aces", [True, False], lambda v: _fmt_yn(v)),
+        ("surrender_rule", "menu.field.surrender_rule",
          [SurrenderRule.NONE, SurrenderRule.LATE, SurrenderRule.EARLY],
-         lambda v: {"none": "No permitido", "late": "Tardío", "early": "Temprano"}[v.value]),
-        ("insurance_allowed", "Seguro permitido", [True, False], lambda v: "Sí" if v else "No"),
-        ("even_money_allowed", "Even Money", [True, False], lambda v: "Sí" if v else "No"),
-        ("min_bet", "Apuesta mínima", [5.0, 10.0, 25.0, 50.0], lambda v: f"${v:.0f}"),
-        ("max_bet", "Apuesta máxima",
+         lambda v: {"none": i18n.t("menu.surrender_none"), "late": i18n.t("menu.surrender_late"),
+                    "early": i18n.t("menu.surrender_early")}[v.value]),
+        ("insurance_allowed", "menu.field.insurance_allowed", [True, False], lambda v: _fmt_yn(v)),
+        ("even_money_allowed", "menu.field.even_money_allowed", [True, False], lambda v: _fmt_yn(v)),
+        ("min_bet", "menu.field.min_bet", [5.0, 10.0, 25.0, 50.0], lambda v: f"${v:.0f}"),
+        ("max_bet", "menu.field.max_bet",
          [100.0, 250.0, 500.0, 1000.0, 2000.0, 5000.0], lambda v: f"${v:.0f}"),
-        ("starting_chips", "Fichas iniciales",
+        ("starting_chips", "menu.field.starting_chips",
          [200.0, 500.0, 1000.0, 2000.0, 5000.0, 10000.0], lambda v: f"${v:.0f}"),
-        ("five_card_charlie", "Five Card Charlie", [True, False], lambda v: "Sí" if v else "No"),
-        ("original_bets_only", "OBBO (BJ del crupier)", [True, False], lambda v: "Sí" if v else "No"),
-        ("perfect_pairs_allowed", "Apuesta lateral: Parejas Perfectas", [True, False], lambda v: "Sí" if v else "No"),
-        ("twentyone_plus_three_allowed", "Apuesta lateral: 21+3", [True, False], lambda v: "Sí" if v else "No"),
+        ("five_card_charlie", "menu.field.five_card_charlie", [True, False], lambda v: _fmt_yn(v)),
+        ("original_bets_only", "menu.field.original_bets_only", [True, False], lambda v: _fmt_yn(v)),
+        ("perfect_pairs_allowed", "menu.field.perfect_pairs_allowed", [True, False], lambda v: _fmt_yn(v)),
+        ("twentyone_plus_three_allowed", "menu.field.twentyone_plus_three_allowed", [True, False], lambda v: _fmt_yn(v)),
+        ("side_bet_max", "menu.field.side_bet_max",
+         [10.0, 25.0, 50.0, 100.0, 250.0, 500.0], lambda v: f"${v:.0f}"),
     ]
 
     def __init__(self, screen: pygame.Surface, seed: Optional[Rules] = None) -> None:
@@ -573,7 +649,7 @@ class RulesEditor:
         surf = self.screen
         surf.fill(cfg.COLOR_BG)
 
-        title = self._font_title.render("REGLAS PERSONALIZADAS", True, cfg.COLOR_GOLD)
+        title = self._font_title.render(i18n.t("menu.rules_editor_title"), True, cfg.COLOR_GOLD)
         surf.blit(title, (self.sw // 2 - title.get_width() // 2, 30))
 
         # Botón "Restablecer" (esquina superior derecha)
@@ -581,29 +657,27 @@ class RulesEditor:
         pygame.draw.rect(surf, (20, 15, 0), self._reset_rect, border_radius=8)
         pygame.draw.rect(surf, reset_col, self._reset_rect, 1, border_radius=8)
         icons.refresh_arrow(surf, self._reset_rect.x + 20, self._reset_rect.centery, 8, reset_col)
-        reset_txt = self._font_small.render("Restablecer", True, reset_col)
+        reset_txt = self._font_small.render(i18n.t("menu.reset_button"), True, reset_col)
         surf.blit(reset_txt, (self._reset_rect.x + 36, self._reset_rect.centery - reset_txt.get_height() // 2))
 
         for row in self._rows:
             row.draw(surf)
 
-        hint = self._font_small.render(
-            "Flechas para moverte y cambiar valores · Enter/JUGAR confirma · Esc/Volver cancela",
-            True, (110, 110, 110))
+        hint = self._font_small.render(i18n.t("menu.rules_hint"), True, (110, 110, 110))
         surf.blit(hint, (self.sw // 2 - hint.get_width() // 2, self.sh - 108))
 
         # Botones Volver / JUGAR
         back_col = cfg.COLOR_TEXT if self._back_hover else (150, 150, 150)
         pygame.draw.rect(surf, (20, 15, 0), self._back_rect, border_radius=10)
         pygame.draw.rect(surf, back_col, self._back_rect, 2, border_radius=10)
-        back_txt = self._font_row.render("Volver", True, back_col)
+        back_txt = self._font_row.render(i18n.t("menu.back_button"), True, back_col)
         surf.blit(back_txt, (self._back_rect.centerx - back_txt.get_width() // 2,
                               self._back_rect.centery - back_txt.get_height() // 2))
 
         play_col = cfg.COLOR_GOLD if self._play_hover else (160, 130, 40)
         pygame.draw.rect(surf, (20, 15, 0), self._play_rect, border_radius=10)
         pygame.draw.rect(surf, play_col, self._play_rect, 2, border_radius=10)
-        play_txt = self._font_row.render("JUGAR", True, play_col)
+        play_txt = self._font_row.render(i18n.t("menu.play_button"), True, play_col)
         icon_gap = 8
         total_w = play_txt.get_width() + play_txt.get_height() * 0.7 + icon_gap
         tx = self._play_rect.centerx - int(total_w) // 2

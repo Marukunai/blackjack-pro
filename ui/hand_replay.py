@@ -19,6 +19,7 @@ import pygame
 from typing import Optional
 
 from config import settings as cfg
+from config import i18n
 from core.card import Card
 from core.hand import Hand
 from ui import icons
@@ -70,7 +71,7 @@ class HandReplayScreen:
     def _parse_replay_data(self) -> None:
         raw = self.row.get("replay_data")
         if not raw:
-            self._error = "No hay datos de repetición guardados para esta mano."
+            self._error = i18n.t("replay.no_data")
             return
         try:
             data = json.loads(raw)
@@ -82,7 +83,7 @@ class HandReplayScreen:
             if not self.player_cards or not self.dealer_cards:
                 raise ValueError("faltan cartas")
         except (json.JSONDecodeError, KeyError, ValueError, TypeError):
-            self._error = "No se pudo interpretar la repetición de esta mano."
+            self._error = i18n.t("replay.parse_error")
 
     def _build_deal_queue(self) -> None:
         if self._error:
@@ -212,7 +213,8 @@ class HandReplayScreen:
         dealer_hand = Hand()
         for c in self._dealt_cards("dealer"):
             dealer_hand.add_card(c)
-        d_label = f"CRUPIER  {dealer_hand.value}" if dealer_hand.cards else "CRUPIER"
+        d_label = (i18n.t("replay.dealer_label_value", value=dealer_hand.value)
+                   if dealer_hand.cards else i18n.t("replay.dealer_label_empty"))
         d_surf = self._font_info.render(d_label, True, cfg.COLOR_TEXT)
         surf.blit(d_surf, (self.sw // 2 - d_surf.get_width() // 2, self.table.dealer_zone_y - 24))
 
@@ -221,11 +223,12 @@ class HandReplayScreen:
             player_hand.add_card(c)
         tags = []
         if self.is_doubled:
-            tags.append("doblada")
+            tags.append(i18n.t("replay.tag_doubled"))
         if self.surrendered:
-            tags.append("rendida")
+            tags.append(i18n.t("replay.tag_surrendered"))
         tag_str = f" ({', '.join(tags)})" if tags else ""
-        p_label = f"TU MANO  {player_hand.value}{tag_str}" if player_hand.cards else "TU MANO"
+        p_label = (i18n.t("replay.player_label_value", value=player_hand.value, tags=tag_str)
+                   if player_hand.cards else i18n.t("replay.player_label_empty"))
         p_surf = self._font_info.render(p_label, True, cfg.COLOR_GOLD)
         surf.blit(p_surf, (self.sw // 2 - p_surf.get_width() // 2, self.table.player_zone_y - 24))
 
@@ -239,8 +242,8 @@ class HandReplayScreen:
             date_str = time.strftime("%d/%m/%Y %H:%M", time.localtime(row["played_at"]))
         except (OSError, ValueError, KeyError):
             date_str = "—"
-        preset = row.get("preset_name") or "—"
-        text = f"{date_str}   ·   {preset}   ·   Apuesta: ${row.get('bet', 0):.0f}"
+        preset = i18n.preset_label(row.get("preset_name") or "—")
+        text = i18n.t("replay.info_bar", date=date_str, preset=preset, bet=row.get('bet', 0))
         t = self._font_small.render(text, True, (140, 140, 140))
         surf.blit(t, (self.sw // 2 - t.get_width() // 2, 18))
 
@@ -264,8 +267,8 @@ class HandReplayScreen:
         back_col = cfg.COLOR_GOLD if self._back_hover else (150, 150, 150)
         pygame.draw.rect(surf, (20, 15, 0), self._back_rect, border_radius=10)
         pygame.draw.rect(surf, back_col, self._back_rect, 2, border_radius=10)
-        back_txt = self._font_info.render("Volver", True, back_col)
+        back_txt = self._font_info.render(i18n.t("replay.back_button"), True, back_col)
         surf.blit(back_txt, (self._back_rect.centerx - back_txt.get_width() // 2,
                               self._back_rect.centery - back_txt.get_height() // 2))
-        hint = self._font_small.render("Esc/Volver para salir", True, (90, 90, 90))
+        hint = self._font_small.render(i18n.t("replay.exit_hint"), True, (90, 90, 90))
         surf.blit(hint, (self.sw // 2 - hint.get_width() // 2, self.sh - 24))

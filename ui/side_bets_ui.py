@@ -11,6 +11,7 @@ import pygame
 from typing import Optional
 
 from config import settings as cfg
+from config import i18n
 from ui import icons
 
 # Importes disponibles para cada apuesta lateral; 0 = sin apostar.
@@ -107,7 +108,7 @@ class SideBetPanel:
         self.steppers: list[_SideBetStepper] = []
         kinds = []
         if perfect_pairs_allowed:
-            kinds.append(("perfect_pairs", "Parejas Perfectas"))
+            kinds.append(("perfect_pairs", i18n.t("sidebets.perfect_pairs_label")))
         if twentyone_plus_three_allowed:
             kinds.append(("21+3", "21+3"))
 
@@ -151,7 +152,7 @@ class SideBetPanel:
     def draw(self, surf: pygame.Surface) -> None:
         if not self.steppers:
             return
-        title = self._font_small.render("Apuestas laterales (opcional)", True, (150, 150, 150))
+        title = self._font_small.render(i18n.t("sidebets.title"), True, (150, 150, 150))
         top_y = self.steppers[0].rect.y - 20
         surf.blit(title, (self.sw // 2 - title.get_width() // 2, top_y))
         for s in self.steppers:

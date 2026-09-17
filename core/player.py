@@ -133,6 +133,14 @@ class SessionStats:
         self.worst_streak: int = 0
         self.hands_split: int = 0       # nº de veces que se ha usado split
 
+        # Fase 24: registro mano a mano de ESTA sesión (se pierde al
+        # cerrar el juego, a diferencia del hand_history persistido en
+        # SQLite) -- alimenta los gráficos nuevos del panel de
+        # estadísticas (F3): distribución de resultados y racha a lo
+        # largo de la sesión. Cada entrada es (categoría, racha_tras_esa_mano).
+        # Categorías: "blackjack", "win", "push", "loss", "bust", "surrender".
+        self.hand_log: list[tuple[str, int]] = []
+
     @property
     def win_rate(self) -> float:
         if self.hands_played == 0:
