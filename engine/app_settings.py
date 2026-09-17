@@ -31,6 +31,13 @@ _DEFAULTS: dict[str, Any] = {
     # -- una instalación nueva sin app_settings.json se comporta
     # exactamente igual que antes de que existiera el idioma.
     "language": None,
+    # Fase 30: mejor marca personal en el modo práctica de conteo de
+    # cartas (ui/counting_trainer.py) -- del DISPOSITIVO, no de un perfil
+    # concreto, igual que el tema visual o el idioma: es una habilidad del
+    # propio Maruku, no de una partida guardada. None = todavía sin
+    # ningún intento registrado.
+    "counting_best_accuracy": None,   # float 0.0-1.0, o None
+    "counting_best_streak": 0,        # int, racha de aciertos más larga
 }
 
 

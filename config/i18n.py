@@ -573,6 +573,9 @@ _add("menu.hint_history_suffix", " · H: historial", " · H: history")
 _add("menu.history_button", "Historial", "History")
 _add("menu.challenges_button", "Desafíos", "Challenges")
 _add("menu.settings_button", "Ajustes", "Settings")
+# Fase 30: modo práctica de conteo de cartas.
+_add("menu.counting_button", "Conteo", "Counting")
+_add("menu.hint_counting_suffix", " · C: conteo", " · C: counting")
 _add("menu.rules_editor_title", "REGLAS PERSONALIZADAS", "CUSTOM RULES")
 _add("menu.reset_button", "Restablecer", "Reset")
 _add("menu.rules_hint", "Flechas para moverte y cambiar valores · Enter/JUGAR confirma · Esc/Volver cancela",
@@ -764,6 +767,37 @@ _add("counter.warm", "Tibio 🌡️", "Warm 🌡️")
 _add("counter.hot", "Caliente 🔥", "Hot 🔥")
 _add("counter.very_hot", "¡Muy caliente! 🌋", "Very hot! 🌋")
 
+# ------------------------------------------------------------------
+# ui/counting_trainer.py (Fase 30) -- modo práctica de conteo de cartas
+# ------------------------------------------------------------------
+_add("counting.title", "Práctica de Conteo de Cartas", "Card Counting Practice")
+_add("counting.speed_label", "Velocidad", "Speed")
+_add("counting.speed_slow", "Lenta", "Slow")
+_add("counting.speed_normal", "Normal", "Normal")
+_add("counting.speed_fast", "Rápida", "Fast")
+_add("counting.start_button", "Empezar", "Start")
+_add("counting.back_button", "Volver", "Back")
+_add("counting.best_record", "Mejor precisión: {pct}  ·  racha: {streak}", "Best accuracy: {pct}  ·  streak: {streak}")
+_add("counting.no_record", "Todavía no hay ningún intento.", "No attempts yet.")
+_add("counting.hint_setup", "Flechas para ajustar · Enter para empezar · Esc para volver",
+     "Arrows to adjust · Enter to start · Esc to go back")
+_add("counting.cards_dealt_label", "Cartas repartidas: {n}", "Cards dealt: {n}")
+_add("counting.ask_prompt", "¿Cuál es tu conteo actual (running count)?", "What's your current running count?")
+_add("counting.answer_hint", "Escribe el número y pulsa Enter", "Type the number and press Enter")
+_add("counting.feedback_correct", "¡Correcto!", "Correct!")
+_add("counting.feedback_wrong", "Incorrecto", "Incorrect")
+_add("counting.feedback_detail", "Tu respuesta: {given}  ·  Conteo real: {actual}",
+     "Your answer: {given}  ·  Actual count: {actual}")
+_add("counting.hint_dealing", "Esc para terminar la sesión", "Esc to end the session")
+_add("counting.summary_title", "Resumen de la sesión", "Session summary")
+_add("counting.summary_questions", "Preguntas: {n}", "Questions: {n}")
+_add("counting.summary_correct", "Aciertos: {n} ({pct})", "Correct: {n} ({pct})")
+_add("counting.summary_best_streak", "Mejor racha: {n}", "Best streak: {n}")
+_add("counting.summary_new_record", "¡Nuevo récord!", "New record!")
+_add("counting.retry_button", "Otra vez", "Try again")
+_add("counting.hint_summary", "Enter para repetir · Esc para volver al menú", "Enter to retry · Esc to return to menu")
+_add("counting.summary_final_count", "Conteo final: RC {rc}  ·  TC {tc}", "Final count: RC {rc}  ·  TC {tc}")
+
 _add("renderer.keybinds_hint", "F1: Hints  F2: Contador  F3: Stats  F4: Logros  F5: Entrenamiento  M: Música  ESC: Menú",
      "F1: Hints  F2: Counter  F3: Stats  F4: Achievements  F5: Training  M: Music  ESC: Menu")
 
@@ -809,6 +843,34 @@ _STRINGS_FR: dict[str, str] = {
     'counter.very_cold': 'Très froid 🥶',
     'counter.very_hot': 'Très chaud ! 🌋',
     'counter.warm': 'Tiède 🌡️',
+    # Fase 30 : entraînement au comptage de cartes.
+    'menu.counting_button': 'Comptage',
+    'menu.hint_counting_suffix': ' · C : comptage',
+    'counting.title': 'Entraînement au comptage de cartes',
+    'counting.speed_label': 'Vitesse',
+    'counting.speed_slow': 'Lente',
+    'counting.speed_normal': 'Normale',
+    'counting.speed_fast': 'Rapide',
+    'counting.start_button': 'Commencer',
+    'counting.back_button': 'Retour',
+    'counting.best_record': 'Meilleure précision : {pct}  ·  série : {streak}',
+    'counting.no_record': "Aucune tentative pour l'instant.",
+    'counting.hint_setup': 'Flèches pour ajuster · Entrée pour commencer · Échap pour revenir',
+    'counting.cards_dealt_label': 'Cartes distribuées : {n}',
+    'counting.ask_prompt': 'Quel est ton comptage actuel (running count) ?',
+    'counting.answer_hint': 'Tape le nombre et appuie sur Entrée',
+    'counting.feedback_correct': 'Correct !',
+    'counting.feedback_wrong': 'Incorrect',
+    'counting.feedback_detail': 'Ta réponse : {given}  ·  Comptage réel : {actual}',
+    'counting.hint_dealing': 'Échap pour terminer la session',
+    'counting.summary_title': 'Résumé de la session',
+    'counting.summary_questions': 'Questions : {n}',
+    'counting.summary_correct': 'Bonnes réponses : {n} ({pct})',
+    'counting.summary_best_streak': 'Meilleure série : {n}',
+    'counting.summary_new_record': 'Nouveau record !',
+    'counting.retry_button': 'Recommencer',
+    'counting.hint_summary': 'Entrée pour recommencer · Échap pour revenir au menu',
+    'counting.summary_final_count': 'Comptage final : RC {rc}  ·  TC {tc}',
     'engine.action_unavailable': 'Action « {action} » indisponible pour le moment.',
     'engine.dealer_has_blackjack': 'Le croupier a Blackjack !',
     'engine.even_money_paid': '{name} : Even Money payé.',
@@ -1094,6 +1156,34 @@ _STRINGS_PT: dict[str, str] = {
     'counter.very_cold': 'Muito frio 🥶',
     'counter.very_hot': 'Muito quente! 🌋',
     'counter.warm': 'Morno 🌡️',
+    # Fase 30: prática de contagem de cartas.
+    'menu.counting_button': 'Contagem',
+    'menu.hint_counting_suffix': ' · C: contagem',
+    'counting.title': 'Prática de Contagem de Cartas',
+    'counting.speed_label': 'Velocidade',
+    'counting.speed_slow': 'Lenta',
+    'counting.speed_normal': 'Normal',
+    'counting.speed_fast': 'Rápida',
+    'counting.start_button': 'Começar',
+    'counting.back_button': 'Voltar',
+    'counting.best_record': 'Melhor precisão: {pct}  ·  sequência: {streak}',
+    'counting.no_record': 'Ainda não há nenhuma tentativa.',
+    'counting.hint_setup': 'Setas para ajustar · Enter para começar · Esc para voltar',
+    'counting.cards_dealt_label': 'Cartas distribuídas: {n}',
+    'counting.ask_prompt': 'Qual é a tua contagem atual (running count)?',
+    'counting.answer_hint': 'Escreve o número e prime Enter',
+    'counting.feedback_correct': 'Correto!',
+    'counting.feedback_wrong': 'Incorreto',
+    'counting.feedback_detail': 'A tua resposta: {given}  ·  Contagem real: {actual}',
+    'counting.hint_dealing': 'Esc para terminar a sessão',
+    'counting.summary_title': 'Resumo da sessão',
+    'counting.summary_questions': 'Perguntas: {n}',
+    'counting.summary_correct': 'Acertos: {n} ({pct})',
+    'counting.summary_best_streak': 'Melhor sequência: {n}',
+    'counting.summary_new_record': 'Novo recorde!',
+    'counting.retry_button': 'Outra vez',
+    'counting.hint_summary': 'Enter para repetir · Esc para voltar ao menu',
+    'counting.summary_final_count': 'Contagem final: RC {rc}  ·  TC {tc}',
     'engine.action_unavailable': "Ação '{action}' não disponível agora.",
     'engine.dealer_has_blackjack': 'O crupiê tem Blackjack!',
     'engine.even_money_paid': '{name}: Even Money pago.',
@@ -1379,6 +1469,34 @@ _STRINGS_DE: dict[str, str] = {
     'counter.very_cold': 'Sehr kalt 🥶',
     'counter.very_hot': 'Sehr heiß! 🌋',
     'counter.warm': 'Warm 🌡️',
+    # Fase 30: Kartenzähl-Training.
+    'menu.counting_button': 'Zählen',
+    'menu.hint_counting_suffix': ' · C: Zählen',
+    'counting.title': 'Kartenzähl-Training',
+    'counting.speed_label': 'Geschwindigkeit',
+    'counting.speed_slow': 'Langsam',
+    'counting.speed_normal': 'Normal',
+    'counting.speed_fast': 'Schnell',
+    'counting.start_button': 'Starten',
+    'counting.back_button': 'Zurück',
+    'counting.best_record': 'Beste Genauigkeit: {pct}  ·  Serie: {streak}',
+    'counting.no_record': 'Noch kein Versuch.',
+    'counting.hint_setup': 'Pfeiltasten zum Anpassen · Enter zum Starten · Esc zum Zurückgehen',
+    'counting.cards_dealt_label': 'Ausgeteilte Karten: {n}',
+    'counting.ask_prompt': 'Wie lautet dein aktueller Zählstand (Running Count)?',
+    'counting.answer_hint': 'Zahl eingeben und Enter drücken',
+    'counting.feedback_correct': 'Richtig!',
+    'counting.feedback_wrong': 'Falsch',
+    'counting.feedback_detail': 'Deine Antwort: {given}  ·  Tatsächlicher Zählstand: {actual}',
+    'counting.hint_dealing': 'Esc zum Beenden der Sitzung',
+    'counting.summary_title': 'Sitzungsübersicht',
+    'counting.summary_questions': 'Fragen: {n}',
+    'counting.summary_correct': 'Richtig: {n} ({pct})',
+    'counting.summary_best_streak': 'Beste Serie: {n}',
+    'counting.summary_new_record': 'Neuer Rekord!',
+    'counting.retry_button': 'Nochmal',
+    'counting.hint_summary': 'Enter zum Wiederholen · Esc zurück zum Menü',
+    'counting.summary_final_count': 'Endstand: RC {rc}  ·  TC {tc}',
     'engine.action_unavailable': "Aktion '{action}' derzeit nicht verfügbar.",
     'engine.dealer_has_blackjack': 'Der Dealer hat Blackjack!',
     'engine.even_money_paid': '{name}: Even Money ausgezahlt.',

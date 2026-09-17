@@ -133,6 +133,14 @@ class MainMenu:
         self._settings_rect = pygame.Rect(self.sw - 170, 20, 150, 32)
         self._settings_hover = False
 
+        # Botón "Conteo" (Fase 30), justo debajo de Ajustes -- simétrico a
+        # "Desafíos" bajo Historial. Siempre visible (a diferencia de
+        # Desafíos, no depende de cuántos jugadores haya sentados: es una
+        # herramienta de entrenamiento personal, no una partida con
+        # fichas ni resultado que dependa de con quién se juegue).
+        self._counting_rect = pygame.Rect(self.sw - 170, 60, 150, 32)
+        self._counting_hover = False
+
         # Animación de fondo
         self._anim_offset = 0.0
 
@@ -219,6 +227,10 @@ class MainMenu:
         # tener que volver a abrir el menú desde cero.
         self._build_preset_items()
 
+    def _show_counting(self) -> None:
+        from ui.counting_trainer import CardCountingTrainer  # import diferido: evita ciclos de import
+        CardCountingTrainer(self.screen).run()
+
     def _confirm_selection(self) -> None:
         """Se llama al pulsar Enter o el botón JUGAR. Si el preset
         seleccionado es "Personalizado...", abre RulesEditor en vez de
@@ -245,17 +257,22 @@ class MainMenu:
                 self._show_challenges()
             elif self._settings_rect.collidepoint(event.pos):
                 self._show_settings()
+            elif self._counting_rect.collidepoint(event.pos):
+                self._show_counting()
 
         if event.type == pygame.MOUSEMOTION:
             self._start_hover = self._start_rect.collidepoint(event.pos)
             self._history_hover = self._history_rect.collidepoint(event.pos)
             self._challenges_hover = self._challenges_rect.collidepoint(event.pos)
             self._settings_hover = self._settings_rect.collidepoint(event.pos)
+            self._counting_hover = self._counting_rect.collidepoint(event.pos)
 
         if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
             self._confirm_selection()
         if event.type == pygame.KEYDOWN and event.key == pygame.K_h:
             self._show_history()
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_c:
+            self._show_counting()
 
         # Selección de preset con click o teclado
         for i, item in enumerate(self._preset_items):
@@ -347,6 +364,7 @@ class MainMenu:
         hint_text = i18n.t("menu.hint_base")
         if self._seats:
             hint_text += i18n.t("menu.hint_history_suffix")
+        hint_text += i18n.t("menu.hint_counting_suffix")
         hint = self._font_small.render(hint_text, True, (80, 80, 80))
         surf.blit(hint, (self.sw//2 - hint.get_width()//2, self.sh - 28))
 
@@ -384,6 +402,16 @@ class MainMenu:
         set_txt = self._font_small.render(i18n.t("menu.settings_button"), True, set_col)
         surf.blit(set_txt, (self._settings_rect.x + 36,
                              self._settings_rect.centery - set_txt.get_height() // 2))
+
+        # Botón "Conteo" (Fase 30) -- siempre visible, simétrico a
+        # Desafíos bajo Historial (ver comentario en __init__).
+        cnt_col = cfg.COLOR_GOLD if self._counting_hover else (140, 140, 140)
+        pygame.draw.rect(surf, (20, 15, 0), self._counting_rect, border_radius=8)
+        pygame.draw.rect(surf, cnt_col, self._counting_rect, 1, border_radius=8)
+        icons.draw_suit(surf, "S", self._counting_rect.x + 20, self._counting_rect.centery, 14, cnt_col)
+        cnt_txt = self._font_small.render(i18n.t("menu.counting_button"), True, cnt_col)
+        surf.blit(cnt_txt, (self._counting_rect.x + 36,
+                             self._counting_rect.centery - cnt_txt.get_height() // 2))
 
     def _draw_bg_pattern(self, surf: pygame.Surface) -> None:
         """Patrón de rombos animado en el fondo."""
