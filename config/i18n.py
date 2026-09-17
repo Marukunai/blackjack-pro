@@ -407,7 +407,10 @@ _add("renderer.challenge_lost_title", "DESAFÍO FALLIDO", "CHALLENGE FAILED")
 _add("renderer.final_chips_net_stat", "Fichas finales: {chips}   Neto: {net:+.0f}",
      "Final chips: {chips}   Net: {net:+.0f}")
 _add("renderer.seat_doubles", "DOBLA", "DOUBLES")
+_add("renderer.seat_split_aces", "ASES", "ACES")
 _add("renderer.seat_blackjack", "¡BLACKJACK!", "BLACKJACK!")
+_add("renderer.split_aces_result", "{name} separa los Ases: {v1} y {v2}",
+     "{name} splits Aces: {v1} and {v2}")
 _add("renderer.blackjack_bang", "¡Blackjack!", "Blackjack!")
 
 # ------------------------------------------------------------------

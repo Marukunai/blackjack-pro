@@ -895,10 +895,18 @@ class Renderer:
         # Se guarda la referencia a la mano ANTES de procesar la acción
         # (si es un double) porque el objeto se muta en el sitio -- así,
         # aunque el motor avance el índice de mano activa del jugador,
-        # se puede seguir leyendo su valor final más abajo.
+        # se puede seguir leyendo su valor final más abajo. Para un split
+        # se guarda en cambio el jugador + el índice donde van a quedar
+        # las dos manos nuevas (hand1 en ese índice, hand2 justo después),
+        # ya que ANTES del split solo hay una mano y no hay nada útil que
+        # leer todavía.
         doubling_hand = (self._engine.player.active_hand
                           if action == "double" and self._engine else None)
         doubling_player_name = self._engine.player.name if doubling_hand else None
+
+        splitting_player = self._engine.player if action == "split" and self._engine else None
+        splitting_player_name = splitting_player.name if splitting_player else None
+        splitting_hand_index = splitting_player.active_hand_index if splitting_player else None
 
         self._engine.player_action(action)
 
@@ -924,6 +932,30 @@ class Renderer:
                 self._player_message(
                     i18n.t("renderer.double_result", name=doubling_player_name, value=doubling_hand.value),
                     cfg.COLOR_GOLD)
+
+        # Splitear Ases con hit_split_aces=False (el valor por defecto en
+        # casi todos los presets) planta las DOS manos nuevas al instante,
+        # con una sola carta cada una -- el mismo problema que el double:
+        # sin esta pausa, el foco saltaría al siguiente jugador antes de
+        # que se llegasen a ver esas cartas. Se reutiliza el mecanismo del
+        # double (misma duración de pausa) con un motivo propio para que
+        # la tira de asientos muestre el texto correcto (ver
+        # _seat_status_text) en vez de "DOBLA".
+        elif (splitting_player is not None and self._state == self._PLAYING and self._engine
+                and self._engine.state == GameState.PLAYER_TURN
+                and self._engine.player is splitting_player
+                and self._engine.player.active_hand is None
+                and len(self._engine.players) > 1
+                and splitting_hand_index is not None
+                and splitting_hand_index + 1 < len(splitting_player.hands)):
+            hand1 = splitting_player.hands[splitting_hand_index]
+            hand2 = splitting_player.hands[splitting_hand_index + 1]
+            self._turn_reveal_wait = self._double_reveal_pause()
+            self._turn_reveal_reason = "split_aces"
+            self._player_message(
+                i18n.t("renderer.split_aces_result", name=splitting_player_name,
+                       v1=hand1.value, v2=hand2.value),
+                cfg.COLOR_GOLD)
 
     def _check_training_play(self, action: str) -> None:
         """Modo entrenamiento (Fase 19): compara la acción que el jugador
@@ -1582,9 +1614,12 @@ class Renderer:
             if self._state == self._PLAYING and self._turn_reveal_wait > 0:
                 # Mano que se está enseñando un instante antes de pasar
                 # sola al siguiente jugador -- por Blackjack natural (sin
-                # ninguna acción posible) o por acabar de doblar.
+                # ninguna acción posible), por acabar de doblar, o por
+                # splitear Ases sin poder pedir más tras el split.
                 if self._turn_reveal_reason == "double":
                     return i18n.t("renderer.seat_doubles")
+                if self._turn_reveal_reason == "split_aces":
+                    return i18n.t("renderer.seat_split_aces")
                 return i18n.t("renderer.seat_blackjack")
             phase = {
                 self._BETTING: i18n.t("renderer.status_betting"),

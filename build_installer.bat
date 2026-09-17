@@ -7,21 +7,23 @@ echo   Blackjack Pro - generador del INSTALADOR
 echo ============================================
 echo.
 
+rem Siempre se regenera dist\BlackjackPro.exe desde el codigo actual antes
+rem de empaquetar el instalador -- NUNCA se reutiliza uno ya existente. Antes
+rem este paso se saltaba si dist\BlackjackPro.exe ya existia (para ir mas
+rem rapido), pero eso hizo que varias versiones seguidas del instalador
+rem empaquetaran un .exe DESACTUALIZADO sin darse cuenta -- incluido, la
+rem ultima vez, el icono nuevo -- porque nadie se acordaba de correr
+rem build_exe.bat a mano primero. Los ~1-3 minutos extra de PyInstaller
+rem valen la pena para no volver a distribuir una version vieja sin saberlo.
+echo [1/3] Generando dist\BlackjackPro.exe desde el codigo actual...
+echo.
+call build_exe.bat
 if not exist "dist\BlackjackPro.exe" (
-    echo [1/3] No se encontro dist\BlackjackPro.exe -- generandolo primero...
     echo.
-    call build_exe.bat
-    if not exist "dist\BlackjackPro.exe" (
-        echo.
-        echo ERROR: no se pudo generar dist\BlackjackPro.exe. Revisa los
-        echo mensajes de arriba ^(de build_exe.bat^) antes de continuar.
-        pause
-        exit /b 1
-    )
-) else (
-    echo [1/3] dist\BlackjackPro.exe ya existe, se usara ese.
-    echo       Si has cambiado el codigo desde la ultima vez, corre
-    echo       build_exe.bat primero para regenerarlo.
+    echo ERROR: no se pudo generar dist\BlackjackPro.exe. Revisa los
+    echo mensajes de arriba ^(de build_exe.bat^) antes de continuar.
+    pause
+    exit /b 1
 )
 echo.
 

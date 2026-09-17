@@ -291,17 +291,21 @@ class GameEngine:
             # Caso especial: doblar en multijugador (con la UI llevando el
             # ritmo a mano, auto_advance=False) termina la mano al instante
             # -- una única carta y a plantarse-- justo cuando acaba de
-            # repartirse esa carta. Si se pasara el foco al siguiente
-            # jugador en este mismo paso, la UI ni llegaría a mostrar la
-            # carta recién llegada antes de que la mesa cambiara de sitio.
+            # repartirse esa carta. Lo mismo pasa al splitear Ases cuando
+            # la regla no permite pedir tras ese split (hit_split_aces=
+            # False, el valor por defecto en casi todos los presets): las
+            # DOS manos nuevas quedan plantadas de golpe, con una sola
+            # carta cada una. Si se pasara el foco al siguiente jugador en
+            # este mismo paso, la UI ni llegaría a mostrar la(s) carta(s)
+            # recién repartida(s) antes de que la mesa cambiara de sitio.
             # Se difiere el avance: el estado se queda en PLAYER_TURN con
             # la mano ya resuelta (get_available_actions() ya devuelve
             # [], así que no hay botones que pulsar) y es la propia UI
             # quien, tras pausar un par de segundos para que se vea bien
-            # la carta, llama a continue_round() -- que retoma este mismo
-            # camino más abajo y, con la mano ya en None, entra directo
-            # por _advance_to_next_active_player().
-            if action == "double" and self._multiplayer and not self.auto_advance:
+            # la(s) carta(s), llama a continue_round() -- que retoma este
+            # mismo camino más abajo y, con la mano ya en None, entra
+            # directo por _advance_to_next_active_player().
+            if action in ("double", "split") and self._multiplayer and not self.auto_advance:
                 pass
             else:
                 self._advance_to_next_active_player()
