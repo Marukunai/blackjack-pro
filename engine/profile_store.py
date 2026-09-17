@@ -243,6 +243,19 @@ class ProfileStore:
         ).fetchall()
         return [dict(r) for r in rows]
 
+    def get_all_history(self, profile_id: int) -> list[dict]:
+        """Todo el historial de un perfil, sin paginar y en orden
+        cronológico ascendente (a diferencia de get_history, pensado para
+        la tabla paginada de la UI, que va más reciente primero). Usado
+        por engine/csv_export.py (Fase 29) -- un archivo CSV se lee de
+        arriba abajo como un registro, no como una tabla que se hojea."""
+        rows = self._conn.execute(
+            """SELECT * FROM hand_history WHERE profile_id = ?
+               ORDER BY played_at ASC""",
+            (profile_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
     def count_history(self, profile_id: int) -> int:
         row = self._conn.execute(
             "SELECT COUNT(*) FROM hand_history WHERE profile_id = ?",

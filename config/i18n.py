@@ -417,6 +417,25 @@ def card_back_label(key: str, fallback_es: str) -> str:
     return fallback_es
 
 
+# ui/hand_history.py y engine/csv_export.py (Fase 29) comparten esta
+# traducción de los nombres de RoundResult guardados en hand_history.result
+# -- centralizada aquí para que ninguno de los dos tenga que duplicar el
+# mapeo clave-enum -> clave-i18n.
+_HAND_RESULT_KEYS = {
+    "WIN":            "history.result_win",
+    "BLACKJACK_WIN":  "history.result_blackjack_win",
+    "DEALER_BUST":    "history.result_dealer_bust",
+    "LOSS":           "history.result_loss",
+    "PUSH":           "history.result_push",
+    "SURRENDER":      "history.result_surrender",
+}
+
+
+def hand_result_label(result_key: str) -> str:
+    key = _HAND_RESULT_KEYS.get(result_key)
+    return t(key) if key else result_key
+
+
 # ------------------------------------------------------------------
 # engine/challenges.py -- Challenge.progress_label() (plantillas
 # dinámicas de la barra de progreso del banner de Desafío)
@@ -474,6 +493,31 @@ _add('history.back_button', 'Volver', 'Back')
 _add('history.hint_page_arrows', 'Flechas para cambiar de página', 'Arrows to change page')
 _add('history.hint_esc_exit', 'Esc/Volver para salir', 'Esc/Back to exit')
 _add('history.hint_tab_switch', 'Tab para cambiar de perfil', 'Tab to switch profile')
+# Fase 29: exportación del historial de manos a CSV.
+_add('history.export_button', 'Exportar CSV', 'Export CSV')
+_add('history.export_hint', 'E para exportar CSV', 'E to export CSV')
+_add('history.export_success', 'Exportado: {filename}', 'Exported: {filename}')
+_add('history.export_empty', 'No hay manos que exportar.', 'No hands to export.')
+_add('history.export_error', 'No se pudo exportar.', "Couldn't export.")
+_add('csv.summary_title', 'Resumen de estadísticas', 'Statistics summary')
+_add('csv.label_profile', 'Perfil', 'Profile')
+_add('csv.label_generated', 'Generado', 'Generated')
+_add('csv.label_hands_played', 'Manos jugadas', 'Hands played')
+_add('csv.label_hands_won', 'Victorias', 'Wins')
+_add('csv.label_hands_lost', 'Derrotas', 'Losses')
+_add('csv.label_hands_push', 'Empates', 'Pushes')
+_add('csv.label_hands_surrendered', 'Rendiciones', 'Surrenders')
+_add('csv.label_blackjacks', 'Blackjacks', 'Blackjacks')
+_add('csv.label_busts', 'Pasadas (bust)', 'Busts')
+_add('csv.label_total_wagered', 'Total apostado', 'Total wagered')
+_add('csv.label_net_profit', 'Beneficio neto', 'Net profit')
+_add('csv.label_win_rate', '% Victorias', 'Win rate')
+_add('csv.label_best_streak', 'Mejor racha', 'Best streak')
+_add('csv.label_worst_streak', 'Peor racha', 'Worst streak')
+_add('csv.label_peak_chips', 'Pico de fichas', 'Peak chips')
+_add('csv.label_lowest_chips', 'Fichas mínimas', 'Lowest chips')
+_add('csv.label_hands_split', 'Manos divididas (split)', 'Split hands')
+_add('csv.label_current_chips', 'Fichas actuales', 'Current chips')
 _add('leaderboard.col_rank', '#', '#')
 _add('leaderboard.col_name', 'Perfil', 'Profile')
 _add('leaderboard.col_chips', 'Fichas', 'Chips')
@@ -997,6 +1041,31 @@ _STRINGS_FR: dict[str, str] = {
     'table.bet_label': 'Mise : {bet}',
     'table.dealer_label': 'CROUPIER  {value}',
     'table.hand_label': 'VOTRE MAIN  {value}',
+    # Fase 29 : export CSV de l'historique de mains.
+    'history.export_button': 'Exporter en CSV',
+    'history.export_hint': 'E pour exporter en CSV',
+    'history.export_success': 'Exporté : {filename}',
+    'history.export_empty': 'Aucune main à exporter.',
+    'history.export_error': "Échec de l'export.",
+    'csv.summary_title': 'Résumé des statistiques',
+    'csv.label_profile': 'Profil',
+    'csv.label_generated': 'Généré le',
+    'csv.label_hands_played': 'Mains jouées',
+    'csv.label_hands_won': 'Victoires',
+    'csv.label_hands_lost': 'Défaites',
+    'csv.label_hands_push': 'Égalités',
+    'csv.label_hands_surrendered': 'Abandons',
+    'csv.label_blackjacks': 'Blackjacks',
+    'csv.label_busts': 'Sautés',
+    'csv.label_total_wagered': 'Total misé',
+    'csv.label_net_profit': 'Bénéfice net',
+    'csv.label_win_rate': 'Taux de victoire',
+    'csv.label_best_streak': 'Meilleure série',
+    'csv.label_worst_streak': 'Pire série',
+    'csv.label_peak_chips': 'Pic de jetons',
+    'csv.label_lowest_chips': 'Jetons minimum',
+    'csv.label_hands_split': 'Mains séparées',
+    'csv.label_current_chips': 'Jetons actuels',
 }
 _STRINGS_PT: dict[str, str] = {
     'animations.achievement_for_player': 'CONQUISTA DE {name}',
@@ -1257,6 +1326,31 @@ _STRINGS_PT: dict[str, str] = {
     'table.bet_label': 'Aposta: {bet}',
     'table.dealer_label': 'CRUPIÊ  {value}',
     'table.hand_label': 'A TUA MÃO  {value}',
+    # Fase 29: exportação CSV do histórico de mãos.
+    'history.export_button': 'Exportar CSV',
+    'history.export_hint': 'E para exportar CSV',
+    'history.export_success': 'Exportado: {filename}',
+    'history.export_empty': 'Não há mãos para exportar.',
+    'history.export_error': 'Não foi possível exportar.',
+    'csv.summary_title': 'Resumo de estatísticas',
+    'csv.label_profile': 'Perfil',
+    'csv.label_generated': 'Gerado a',
+    'csv.label_hands_played': 'Mãos jogadas',
+    'csv.label_hands_won': 'Vitórias',
+    'csv.label_hands_lost': 'Derrotas',
+    'csv.label_hands_push': 'Empates',
+    'csv.label_hands_surrendered': 'Rendições',
+    'csv.label_blackjacks': 'Blackjacks',
+    'csv.label_busts': 'Rebentadas',
+    'csv.label_total_wagered': 'Total apostado',
+    'csv.label_net_profit': 'Lucro líquido',
+    'csv.label_win_rate': 'Taxa de vitórias',
+    'csv.label_best_streak': 'Melhor sequência',
+    'csv.label_worst_streak': 'Pior sequência',
+    'csv.label_peak_chips': 'Pico de fichas',
+    'csv.label_lowest_chips': 'Fichas mínimas',
+    'csv.label_hands_split': 'Mãos divididas',
+    'csv.label_current_chips': 'Fichas atuais',
 }
 _STRINGS_DE: dict[str, str] = {
     'animations.achievement_for_player': 'ERFOLG VON {name}',
@@ -1517,6 +1611,31 @@ _STRINGS_DE: dict[str, str] = {
     'table.bet_label': 'Einsatz: {bet}',
     'table.dealer_label': 'DEALER  {value}',
     'table.hand_label': 'DEINE HAND  {value}',
+    # Fase 29: CSV-Export des Handverlaufs.
+    'history.export_button': 'CSV exportieren',
+    'history.export_hint': 'E zum CSV-Export',
+    'history.export_success': 'Exportiert: {filename}',
+    'history.export_empty': 'Keine Hände zum Exportieren.',
+    'history.export_error': 'Export fehlgeschlagen.',
+    'csv.summary_title': 'Statistikübersicht',
+    'csv.label_profile': 'Profil',
+    'csv.label_generated': 'Erstellt am',
+    'csv.label_hands_played': 'Gespielte Hände',
+    'csv.label_hands_won': 'Siege',
+    'csv.label_hands_lost': 'Niederlagen',
+    'csv.label_hands_push': 'Unentschieden',
+    'csv.label_hands_surrendered': 'Aufgaben',
+    'csv.label_blackjacks': 'Blackjacks',
+    'csv.label_busts': 'Überkäufe',
+    'csv.label_total_wagered': 'Gesamteinsatz',
+    'csv.label_net_profit': 'Nettogewinn',
+    'csv.label_win_rate': 'Gewinnrate',
+    'csv.label_best_streak': 'Beste Serie',
+    'csv.label_worst_streak': 'Schlechteste Serie',
+    'csv.label_peak_chips': 'Chip-Höchststand',
+    'csv.label_lowest_chips': 'Chip-Tiefststand',
+    'csv.label_hands_split': 'Geteilte Hände',
+    'csv.label_current_chips': 'Aktuelle Chips',
 }
 STRINGS["fr"].update(_STRINGS_FR)
 STRINGS["pt"].update(_STRINGS_PT)

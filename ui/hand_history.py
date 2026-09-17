@@ -35,19 +35,15 @@ _TABLE_COLS = [
 ]
 _TABLE_W = sum(w for _, w in _TABLE_COLS)
 
-# Mismas etiquetas/colores que usa ui/renderer.py para RoundResult en la
-# pantalla de resultado, pero indexadas por el nombre de enum (str) tal
-# como se guarda en hand_history.result -- así el historial se ve igual
-# que el mensaje que ya vio el jugador al terminar esa mano. Los valores
-# son ahora claves i18n, traducidas en vivo en _draw_table.
-_RESULT_LABELS = {
-    "WIN":            "history.result_win",
-    "BLACKJACK_WIN":  "history.result_blackjack_win",
-    "DEALER_BUST":    "history.result_dealer_bust",
-    "LOSS":           "history.result_loss",
-    "PUSH":           "history.result_push",
-    "SURRENDER":      "history.result_surrender",
-}
+# Mismos colores que usa ui/renderer.py para RoundResult en la pantalla de
+# resultado, indexados por el nombre de enum (str) tal como se guarda en
+# hand_history.result -- así el historial se ve igual que el mensaje que
+# ya vio el jugador al terminar esa mano. El TEXTO (antes vivía en un
+# _RESULT_LABELS de por aquí) ahora sale de i18n.hand_result_label(), que
+# tanto este módulo como ui/hand_replay.py usan por igual -- evita que
+# vuelva a pasar el bug de la Fase 26 (ver ui/hand_replay.py) en que un
+# consumidor de un diccionario de "etiquetas" se quedó sin envolver el
+# valor en i18n.t() al convertirse ese diccionario de texto a claves.
 _RESULT_COLORS = {
     "WIN":            cfg.COLOR_WIN,
     "BLACKJACK_WIN":  cfg.COLOR_BJ,
@@ -87,11 +83,19 @@ class HandHistoryScreen:
         self._load_profile()
 
         self._back_rect = pygame.Rect(self.sw // 2 - 90, self.sh - 78, 180, 44)
+        # Fase 29: botón de exportar CSV, a la izquierda de Volver con
+        # separación fija -- mismo eje Y y alto, así que nunca se solapan
+        # sea cual sea el idioma (el texto del botón se centra dentro de
+        # un ancho fijo, no crece con la traducción).
+        self._export_rect = pygame.Rect(self._back_rect.x - 20 - 170, self.sh - 78, 170, 44)
         self._prev_rect = pygame.Rect(0, 0, 0, 0)
         self._next_rect = pygame.Rect(0, 0, 0, 0)
         self._tab_rects: list[pygame.Rect] = []
         self._replay_rects: list[tuple[pygame.Rect, dict]] = []
-        self._back_hover = self._prev_hover = self._next_hover = False
+        self._back_hover = self._prev_hover = self._next_hover = self._export_hover = False
+        self._export_msg: Optional[str] = None
+        self._export_msg_color: tuple = (150, 150, 150)
+        self._export_msg_until: float = 0.0
 
     # ------------------------------------------------------------------
     @property
@@ -157,15 +161,21 @@ class HandHistoryScreen:
             elif event.key == pygame.K_TAB:
                 mods = pygame.key.get_mods()
                 self._switch_profile(-1 if mods & pygame.KMOD_SHIFT else 1)
+            elif event.key == pygame.K_e:
+                self._export_csv()
 
         if event.type == pygame.MOUSEMOTION:
             self._back_hover = self._back_rect.collidepoint(event.pos)
+            self._export_hover = self._export_rect.collidepoint(event.pos)
             self._prev_hover = self._prev_rect.collidepoint(event.pos)
             self._next_hover = self._next_rect.collidepoint(event.pos)
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if self._back_rect.collidepoint(event.pos):
                 self._done = True
+                return
+            if self._total > 0 and self._export_rect.collidepoint(event.pos):
+                self._export_csv()
                 return
             if self._prev_rect.collidepoint(event.pos):
                 self._go_page(-1)
@@ -183,6 +193,27 @@ class HandHistoryScreen:
                 if r.collidepoint(event.pos):
                     self._open_replay(row)
                     return
+
+    def _export_csv(self) -> None:
+        """Fase 29: exporta el historial completo (todas las manos, no
+        solo la página actual) + el resumen de estadísticas del perfil
+        activo a un CSV en saves/exports/. Sin perfil con manos
+        registradas no hay nada que hacer -- el botón ni se dibuja en
+        ese caso (ver _draw_back), pero la tecla E podría pulsarse igual."""
+        if self.profile_id is None or self._total == 0:
+            return
+        # Import diferido, mismo motivo que _open_replay: solo se paga el
+        # coste de importar csv/engine.csv_export si de verdad se exporta.
+        from engine.csv_export import export_profile_csv, ExportError
+        try:
+            path = export_profile_csv(self.profile_id)
+        except (ExportError, OSError) as e:
+            self._export_msg = i18n.t("history.export_error")
+            self._export_msg_color = cfg.COLOR_LOSE
+        else:
+            self._export_msg = i18n.t("history.export_success", filename=path.name)
+            self._export_msg_color = cfg.COLOR_WIN
+        self._export_msg_until = time.time() + 5.0
 
     def _open_replay(self, row: dict) -> None:
         # Import diferido: evita un ciclo de importación (hand_replay
@@ -281,7 +312,7 @@ class HandHistoryScreen:
             cx += cols[2][1]
 
             result_key = row["result"]
-            label = i18n.t(_RESULT_LABELS[result_key]) if result_key in _RESULT_LABELS else result_key
+            label = i18n.hand_result_label(result_key)
             color = _RESULT_COLORS.get(result_key, cfg.COLOR_TEXT)
             surf.blit(self._font_row.render(label, True, color), (cx, y))
             cx += cols[3][1]
@@ -410,8 +441,30 @@ class HandHistoryScreen:
         surf.blit(back_txt, (self._back_rect.centerx - back_txt.get_width() // 2,
                               self._back_rect.centery - back_txt.get_height() // 2))
 
+        # Fase 29: el botón de exportar solo aparece si hay algo que
+        # exportar -- igual que el propio bloque de tabla/gráfica de
+        # arriba, que tampoco se dibuja con self._total == 0.
+        if self._total > 0:
+            exp_col = cfg.COLOR_GOLD if self._export_hover else (150, 150, 150)
+            pygame.draw.rect(surf, (20, 15, 0), self._export_rect, border_radius=10)
+            pygame.draw.rect(surf, exp_col, self._export_rect, 2, border_radius=10)
+            exp_txt = self._font_row.render(i18n.t("history.export_button"), True, exp_col)
+            surf.blit(exp_txt, (self._export_rect.centerx - exp_txt.get_width() // 2,
+                                 self._export_rect.centery - exp_txt.get_height() // 2))
+
+        # La línea inferior de pistas de teclado se sustituye unos
+        # segundos por el resultado de la exportación (éxito/error) en
+        # vez de añadir una zona nueva a la pantalla -- mismo sitio,
+        # mismo tamaño de fuente, así que no hay riesgo de solape nuevo.
+        if self._export_msg and time.time() < self._export_msg_until:
+            msg = self._font_small.render(self._export_msg, True, self._export_msg_color)
+            surf.blit(msg, (self.sw // 2 - msg.get_width() // 2, self.sh - 24))
+            return
+
         hint_parts = [i18n.t("history.hint_page_arrows"), i18n.t("history.hint_esc_exit")]
         if len(self.profiles) > 1:
             hint_parts.insert(1, i18n.t("history.hint_tab_switch"))
+        if self._total > 0:
+            hint_parts.insert(-1, i18n.t("history.export_hint"))
         hint = self._font_small.render(" · ".join(hint_parts), True, (90, 90, 90))
         surf.blit(hint, (self.sw // 2 - hint.get_width() // 2, self.sh - 24))

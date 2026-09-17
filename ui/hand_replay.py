@@ -26,7 +26,7 @@ from ui import icons
 from ui.card_generator import CardGenerator
 from ui.card_sprite import CardSprite
 from ui.table import Table
-from ui.hand_history import _RESULT_LABELS, _RESULT_COLORS
+from ui.hand_history import _RESULT_COLORS
 
 DEAL_INTERVAL = 16   # frames entre cada carta repartida (60fps ~= 0.27s)
 
@@ -249,7 +249,11 @@ class HandReplayScreen:
 
     def _draw_result(self, surf: pygame.Surface) -> None:
         result_key = self.row.get("result", "")
-        label = _RESULT_LABELS.get(result_key, result_key)
+        # Bug real corregido en la Fase 29: desde la Fase 26 (i18n) esto
+        # mostraba literalmente la CLAVE i18n ("history.result_win") en
+        # vez del texto traducido -- _RESULT_LABELS pasó a guardar claves,
+        # no texto, pero aquí nunca se envolvió el resultado en i18n.t().
+        label = i18n.hand_result_label(result_key)
         color = _RESULT_COLORS.get(result_key, cfg.COLOR_TEXT)
         net = self.row.get("net", 0.0)
 
