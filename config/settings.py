@@ -82,6 +82,9 @@ TABLE_THEMES: dict[str, dict] = {
     "royal_blue":    {"label": "Azul real",      "felt": (20, 45, 95),  "felt_light": (30, 62, 118)},
     "burgundy":      {"label": "Burdeos",        "felt": (85, 24, 34),  "felt_light": (112, 34, 46)},
     "midnight":      {"label": "Negro medianoche", "felt": (28, 28, 32), "felt_light": (44, 44, 50)},
+    # Fase 28: 2 fieltros nuevos.
+    "emerald_luxe":  {"label": "Esmeralda de lujo", "felt": (8, 72, 48),  "felt_light": (14, 98, 64)},
+    "purple_royal":  {"label": "Púrpura real",      "felt": (55, 20, 85), "felt_light": (75, 32, 110)},
 }
 DEFAULT_TABLE_THEME = "classic_green"
 
@@ -89,6 +92,9 @@ CARD_BACK_THEMES: dict[str, dict] = {
     "green_gold": {"label": "Verde y oro",  "dark": (10, 60, 30),  "light": (20, 100, 50), "pattern": (255, 215, 0, 40)},
     "red_classic": {"label": "Rojo clásico", "dark": (90, 15, 20),  "light": (140, 25, 30), "pattern": (255, 255, 255, 45)},
     "blue_royal": {"label": "Azul real",    "dark": (10, 30, 80),  "light": (20, 50, 120), "pattern": (255, 215, 0, 40)},
+    # Fase 28: 2 reversos nuevos.
+    "purple_royal": {"label": "Púrpura real", "dark": (45, 10, 70), "light": (75, 20, 110), "pattern": (255, 215, 0, 40)},
+    "black_silver": {"label": "Negro y plata", "dark": (15, 15, 18), "light": (38, 38, 44), "pattern": (200, 200, 210, 55)},
 }
 DEFAULT_CARD_BACK_THEME = "green_gold"
 

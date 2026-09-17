@@ -337,24 +337,32 @@ _TABLE_THEME_LABELS_EN: dict[str, str] = {
     'classic_green': 'Classic green',
     'midnight': 'Midnight black',
     'royal_blue': 'Royal blue',
+    'emerald_luxe': 'Emerald luxe',
+    'purple_royal': 'Royal purple',
 }
 _TABLE_THEME_LABELS_FR: dict[str, str] = {
     'burgundy': 'Bordeaux',
     'classic_green': 'Vert classique',
     'midnight': 'Noir de minuit',
     'royal_blue': 'Bleu royal',
+    'emerald_luxe': 'Émeraude de luxe',
+    'purple_royal': 'Violet royal',
 }
 _TABLE_THEME_LABELS_PT: dict[str, str] = {
     'burgundy': 'Vinho',
     'classic_green': 'Verde clássico',
     'midnight': 'Preto meia-noite',
     'royal_blue': 'Azul real',
+    'emerald_luxe': 'Esmeralda de luxo',
+    'purple_royal': 'Roxo real',
 }
 _TABLE_THEME_LABELS_DE: dict[str, str] = {
     'burgundy': 'Bordeaux',
     'classic_green': 'Klassisches Grün',
     'midnight': 'Mitternachtsschwarz',
     'royal_blue': 'Königsblau',
+    'emerald_luxe': 'Luxuriöses Smaragdgrün',
+    'purple_royal': 'Königliches Lila',
 }
 _TABLE_THEME_TABLES: dict[str, dict[str, str]] = {
     "en": _TABLE_THEME_LABELS_EN, "fr": _TABLE_THEME_LABELS_FR,
@@ -364,21 +372,30 @@ _CARD_BACK_LABELS_EN: dict[str, str] = {
     'blue_royal': 'Royal blue',
     'green_gold': 'Green & gold',
     'red_classic': 'Classic red',
+    # Fase 28: 2 nuevos reversos.
+    'purple_royal': 'Royal purple',
+    'black_silver': 'Black & silver',
 }
 _CARD_BACK_LABELS_FR: dict[str, str] = {
     'blue_royal': 'Bleu royal',
     'green_gold': 'Vert et or',
     'red_classic': 'Rouge classique',
+    'purple_royal': 'Violet royal',
+    'black_silver': 'Noir et argent',
 }
 _CARD_BACK_LABELS_PT: dict[str, str] = {
     'blue_royal': 'Azul real',
     'green_gold': 'Verde e dourado',
     'red_classic': 'Vermelho clássico',
+    'purple_royal': 'Roxo real',
+    'black_silver': 'Preto e prata',
 }
 _CARD_BACK_LABELS_DE: dict[str, str] = {
     'blue_royal': 'Königsblau',
     'green_gold': 'Grün und Gold',
     'red_classic': 'Klassisches Rot',
+    'purple_royal': 'Königliches Lila',
+    'black_silver': 'Schwarz und Silber',
 }
 _CARD_BACK_TABLES: dict[str, dict[str, str]] = {
     "en": _CARD_BACK_LABELS_EN, "fr": _CARD_BACK_LABELS_FR,
