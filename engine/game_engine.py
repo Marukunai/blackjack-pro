@@ -520,6 +520,11 @@ class GameEngine:
                 outcomes.append(SideBetOutcome("royal_match", label, 0.0, bet, -bet, 0.0))
 
         if outcomes:
+            # Fase 42: se persiste cada apuesta lateral resuelta en el
+            # historial propio del perfil (si tiene uno), para el
+            # desglose de rentabilidad por apuesta lateral -- mismo
+            # momento en que ya se emite el evento para la UI.
+            self.stats_mgrs[player_index].log_side_bets(outcomes)
             self._emit("on_side_bets_result", player_index, outcomes)
 
     def _finish_dealing(self) -> None:

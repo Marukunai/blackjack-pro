@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from core.player import Player
     from core.dealer import Dealer
     from engine.payout import HandPayout
+    from engine.side_bets import SideBetOutcome
 
 
 class StatisticsManager:
@@ -165,3 +166,57 @@ class StatisticsManager:
                 chips_after=self.player.chips,
                 replay_data=replay_data,
             )
+
+    # ------------------------------------------------------------------
+    # Apuestas laterales (Fase 42) -- se añade, nunca se sobrescribe,
+    # igual que log_round() de arriba. Se llama desde
+    # GameEngine._resolve_side_bets() justo cuando se resuelven, con los
+    # mismos SideBetOutcome que ya usa la UI para mostrar el resultado.
+    # ------------------------------------------------------------------
+    def log_side_bets(self, outcomes: list["SideBetOutcome"]) -> None:
+        if self.profile_id is None:
+            return
+        store = get_store()
+        for o in outcomes:
+            store.log_side_bet(self.profile_id, kind=o.kind, bet=o.bet, net=o.net, won=o.won)
+
+
+# ----------------------------------------------------------------------
+# Métricas de riesgo (Fase 42): varianza/desviación típica del resultado
+# por mano y máximo drawdown (mayor caída desde un pico, en TODO el
+# historial, no solo la ventana de la gráfica de evolución) -- función
+# de módulo porque no necesita un Player vivo, solo el profile_id y lo
+# que ya hay guardado en SQLite.
+# ----------------------------------------------------------------------
+def compute_risk_metrics(profile_id: int) -> dict:
+    """Devuelve {hands, net_stddev, max_drawdown, max_drawdown_pct} para
+    el perfil dado. Con menos de 2 manos jugadas no hay suficiente dato
+    para una varianza o un drawdown con sentido -- se devuelven ceros."""
+    store = get_store()
+    history = store.get_all_history(profile_id)
+    hands = len(history)
+    if hands < 2:
+        return {"hands": hands, "net_stddev": 0.0, "max_drawdown": 0.0, "max_drawdown_pct": 0.0}
+
+    nets = [h["net"] for h in history]
+    mean_net = sum(nets) / hands
+    variance = sum((n - mean_net) ** 2 for n in nets) / hands
+    net_stddev = variance ** 0.5
+
+    curve = store.get_chip_curve(profile_id, limit=None)
+    peak = curve[0]
+    max_drawdown = 0.0
+    max_drawdown_pct = 0.0
+    for chips in curve:
+        peak = max(peak, chips)
+        drawdown = peak - chips
+        if drawdown > max_drawdown:
+            max_drawdown = drawdown
+            max_drawdown_pct = (drawdown / peak) if peak > 0 else 0.0
+
+    return {
+        "hands": hands,
+        "net_stddev": net_stddev,
+        "max_drawdown": max_drawdown,
+        "max_drawdown_pct": max_drawdown_pct,
+    }

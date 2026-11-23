@@ -87,6 +87,38 @@ class ProfileStore:
                 unlocked_at     REAL NOT NULL,
                 PRIMARY KEY (profile_id, achievement_id)
             );
+
+            -- Fase 42: historial de apuestas laterales, una fila por
+            -- apuesta lateral resuelta -- igual que hand_history, nunca
+            -- se sobrescribe. Alimenta el desglose de rentabilidad por
+            -- apuesta lateral (apostado/ganado/neto/% acierto por tipo).
+            CREATE TABLE IF NOT EXISTS side_bet_history (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                profile_id  INTEGER NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+                played_at   REAL NOT NULL,
+                kind        TEXT NOT NULL,
+                bet         REAL NOT NULL,
+                net         REAL NOT NULL,
+                won         INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_sidebet_profile
+                ON side_bet_history(profile_id, kind);
+
+            -- Fase 42: resultado final de cada Torneo jugado, una fila
+            -- por asiento con perfil local -- antes se perdía al salir
+            -- de la pantalla de clasificación final.
+            CREATE TABLE IF NOT EXISTS tournament_results (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                profile_id      INTEGER NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+                played_at       REAL NOT NULL,
+                tournament_id   TEXT NOT NULL,
+                tournament_name TEXT NOT NULL,
+                rank            INTEGER NOT NULL,
+                seats           INTEGER NOT NULL,
+                final_chips     REAL NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_tournament_profile
+                ON tournament_results(profile_id);
             """
         )
         self._conn.commit()
@@ -291,10 +323,20 @@ class ProfileStore:
         ).fetchone()
         return row[0] if row else 0
 
-    def get_chip_curve(self, profile_id: int, limit: int = 300) -> list[float]:
+    def get_chip_curve(self, profile_id: int, limit: Optional[int] = 300) -> list[float]:
         """Fichas tras cada una de las últimas `limit` manos, en orden
         cronológico (más antigua primero) -- pensado para dibujar una
-        gráfica simple de evolución, no para paginar como get_history."""
+        gráfica simple de evolución, no para paginar como get_history.
+        limit=None trae el historial COMPLETO sin recortar (Fase 42: lo
+        necesita compute_risk_metrics() para el drawdown máximo, que debe
+        mirar toda la curva y no solo una ventana reciente)."""
+        if limit is None:
+            rows = self._conn.execute(
+                """SELECT chips_after FROM hand_history WHERE profile_id = ?
+                   ORDER BY played_at ASC""",
+                (profile_id,),
+            ).fetchall()
+            return [r[0] for r in rows]
         rows = self._conn.execute(
             """SELECT chips_after FROM hand_history WHERE profile_id = ?
                ORDER BY played_at DESC LIMIT ?""",
@@ -343,6 +385,81 @@ class ProfileStore:
             (profile_id, achievement_id, unlocked_at),
         )
         self._conn.commit()
+
+    # ------------------------------------------------------------------
+    # Apuestas laterales (Fase 42) -- historial propio, igual que
+    # hand_history: nunca se sobrescribe, se añade una fila por apuesta
+    # lateral resuelta.
+    # ------------------------------------------------------------------
+    def log_side_bet(self, profile_id: int, kind: str, bet: float,
+                      net: float, won: bool) -> None:
+        self._conn.execute(
+            """INSERT INTO side_bet_history (profile_id, played_at, kind, bet, net, won)
+               VALUES (?,?,?,?,?,?)""",
+            (profile_id, time.time(), kind, bet, net, 1 if won else 0),
+        )
+        self._conn.commit()
+
+    def get_side_bet_breakdown(self, profile_id: int) -> dict[str, dict]:
+        """Apostado/ganado/neto/aciertos por tipo de apuesta lateral,
+        agregado en SQL -- una fila por `kind` con todas sus manos."""
+        rows = self._conn.execute(
+            """SELECT kind,
+                      COUNT(*)                        AS count,
+                      SUM(bet)                         AS wagered,
+                      SUM(won)                         AS hits,
+                      SUM(net)                          AS net
+               FROM side_bet_history WHERE profile_id = ?
+               GROUP BY kind""",
+            (profile_id,),
+        ).fetchall()
+        return {
+            r["kind"]: {
+                "count": r["count"],
+                "wagered": r["wagered"] or 0.0,
+                "hits": r["hits"] or 0,
+                "net": r["net"] or 0.0,
+            }
+            for r in rows
+        }
+
+    # ------------------------------------------------------------------
+    # Resultados de Torneo (Fase 42) -- antes de esto, el resultado final
+    # de un Torneo (engine/tournament.py) solo vivía en la pantalla de
+    # clasificación y se perdía al volver al menú.
+    # ------------------------------------------------------------------
+    def log_tournament_result(self, profile_id: int, tournament_id: str,
+                               tournament_name: str, rank: int, seats: int,
+                               final_chips: float) -> None:
+        self._conn.execute(
+            """INSERT INTO tournament_results
+               (profile_id, played_at, tournament_id, tournament_name, rank, seats, final_chips)
+               VALUES (?,?,?,?,?,?,?)""",
+            (profile_id, time.time(), tournament_id, tournament_name, rank, seats, final_chips),
+        )
+        self._conn.commit()
+
+    def get_tournament_results(self, profile_id: int, limit: int = 50) -> list[dict]:
+        rows = self._conn.execute(
+            """SELECT * FROM tournament_results WHERE profile_id = ?
+               ORDER BY played_at DESC LIMIT ?""",
+            (profile_id, limit),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def get_tournament_summary(self, profile_id: int) -> dict:
+        """Resumen agregado para el leaderboard: nº de Torneos jugados,
+        nº ganados (rank == 1) y mejor puesto alcanzado."""
+        row = self._conn.execute(
+            """SELECT COUNT(*) AS played,
+                      SUM(CASE WHEN rank = 1 THEN 1 ELSE 0 END) AS wins,
+                      MIN(rank) AS best_rank
+               FROM tournament_results WHERE profile_id = ?""",
+            (profile_id,),
+        ).fetchone()
+        if row is None or row["played"] == 0:
+            return {"played": 0, "wins": 0, "best_rank": None}
+        return {"played": row["played"], "wins": row["wins"] or 0, "best_rank": row["best_rank"]}
 
     def close(self) -> None:
         self._conn.close()

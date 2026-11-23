@@ -423,6 +423,30 @@ def bot_personality_label(personality: str) -> str:
     return table.get(personality, personality)
 
 
+# Fase 42: etiqueta traducida del TIPO de apuesta lateral (SideBetOutcome.kind
+# -- "perfect_pairs"/"21+3"/"lucky_ladies"/"royal_match"), usada en el
+# desglose de rentabilidad de ui/hand_history.py. Mismo patron que
+# _BOT_PERSONALITY_LABELS: identificador interno cerrado, no texto libre.
+_SIDE_BET_KIND_LABELS: dict[str, dict[str, str]] = {
+    "es": {"perfect_pairs": "Parejas Perfectas", "21+3": "21+3",
+           "lucky_ladies": "Lucky Ladies", "royal_match": "Royal Match"},
+    "en": {"perfect_pairs": "Perfect Pairs", "21+3": "21+3",
+           "lucky_ladies": "Lucky Ladies", "royal_match": "Royal Match"},
+    "fr": {"perfect_pairs": "Paires Parfaites", "21+3": "21+3",
+           "lucky_ladies": "Lucky Ladies", "royal_match": "Royal Match"},
+    "pt": {"perfect_pairs": "Pares Perfeitos", "21+3": "21+3",
+           "lucky_ladies": "Lucky Ladies", "royal_match": "Royal Match"},
+    "de": {"perfect_pairs": "Perfect Pairs", "21+3": "21+3",
+           "lucky_ladies": "Lucky Ladies", "royal_match": "Royal Match"},
+}
+
+
+def side_bet_kind_label(kind: str) -> str:
+    lang = getattr(cfg, "LANGUAGE", "es")
+    table = _SIDE_BET_KIND_LABELS.get(lang) or _SIDE_BET_KIND_LABELS["es"]
+    return table.get(kind, kind)
+
+
 # config/settings.py -- TABLE_THEMES / CARD_BACK_THEMES: clave interna
 # (no se toca, se usa para persistir en app_settings.json) -> etiqueta
 # a mostrar por idioma.
@@ -605,6 +629,29 @@ _add('history.export_hint', 'E para exportar CSV', 'E to export CSV')
 _add('history.export_success', 'Exportado: {filename}', 'Exported: {filename}')
 _add('history.export_empty', 'No hay manos que exportar.', 'No hands to export.')
 _add('history.export_error', 'No se pudo exportar.', "Couldn't export.")
+# Fase 42: vista "avanzada" dentro del historial -- varianza/drawdown y
+# desglose de rentabilidad por apuesta lateral, mas los resultados de
+# Torneo guardados (antes se perdian al volver al menu).
+_add('history.advanced_button', 'Avanzado', 'Advanced')
+_add('history.table_view_button', 'Historial', 'History')
+_add('history.advanced_risk_title', 'Riesgo', 'Risk')
+_add('history.advanced_hands_analyzed', 'Manos analizadas: {n}', 'Hands analyzed: {n}')
+_add('history.advanced_stddev', 'Desviación típica por mano: ±{value}', 'Standard deviation per hand: ±{value}')
+_add('history.advanced_drawdown', 'Máximo drawdown: -{value} ({pct})', 'Max drawdown: -{value} ({pct})')
+_add('history.advanced_no_data', 'Todavía no hay suficientes manos para calcular esto.', 'Not enough hands yet to calculate this.')
+_add('history.advanced_sidebets_title', 'Apuestas laterales', 'Side bets')
+_add('history.advanced_sidebets_empty', 'Todavía no has jugado ninguna apuesta lateral.', "You haven't played any side bets yet.")
+_add('history.advanced_sidebets_col_type', 'Tipo', 'Type')
+_add('history.advanced_sidebets_col_count', 'Jugadas', 'Played')
+_add('history.advanced_sidebets_col_wagered', 'Apostado', 'Wagered')
+_add('history.advanced_sidebets_col_net', 'Neto', 'Net')
+_add('history.advanced_sidebets_col_hitrate', '% Acierto', '% Hit')
+_add('history.advanced_tournaments_title', 'Torneos', 'Tournaments')
+_add('history.advanced_tournaments_empty', 'Todavía no has jugado ningún Torneo.', "You haven't played any Tournament yet.")
+_add('history.advanced_tournaments_col_date', 'Fecha', 'Date')
+_add('history.advanced_tournaments_col_name', 'Torneo', 'Tournament')
+_add('history.advanced_tournaments_col_rank', 'Puesto', 'Rank')
+_add('history.advanced_tournaments_col_chips', 'Fichas finales', 'Final chips')
 _add('csv.summary_title', 'Resumen de estadísticas', 'Statistics summary')
 _add('csv.label_profile', 'Perfil', 'Profile')
 _add('csv.label_generated', 'Generado', 'Generated')
@@ -632,6 +679,7 @@ _add('leaderboard.col_win_pct', '% Victorias', '% Wins')
 _add('leaderboard.col_blackjacks', 'Blackjacks', 'Blackjacks')
 _add('leaderboard.col_best_streak', 'Mejor racha', 'Best streak')
 _add('leaderboard.col_achievements', 'Logros', 'Achievements')
+_add('leaderboard.col_tournament_wins', 'Torneos ganados', 'Tournaments won')
 _add('leaderboard.title', 'Comparativa de perfiles', 'Profile leaderboard')
 _add('leaderboard.sort_hint', 'Click en una columna para ordenar por ella', 'Click a column to sort by it')
 _add('leaderboard.empty_state', 'Todavía no hay perfiles para comparar.', 'There are no profiles to compare yet.')
@@ -1413,6 +1461,27 @@ _STRINGS_FR: dict[str, str] = {
     'tutorial.page5_body2': "L'entraînement au comptage de cartes (menu principal) permet de pratiquer le système Hi-Lo sans risquer de jetons.",
     'tutorial.page5_body3': "Vous pouvez ajouter des adversaires contrôlés par l'IA à votre table, jouant avec la stratégie de base.",
     'tutorial.page5_body4': 'Consultez les Réglages pour changer les règles de la maison, la langue, le thème visuel et le volume.',
+    'history.advanced_button': 'Avancé',
+    'history.table_view_button': 'Historique',
+    'history.advanced_risk_title': 'Risque',
+    'history.advanced_hands_analyzed': 'Mains analysées : {n}',
+    'history.advanced_stddev': 'Écart type par main : ±{value}',
+    'history.advanced_drawdown': 'Drawdown maximal : -{value} ({pct})',
+    'history.advanced_no_data': "Pas encore assez de mains pour calculer ceci.",
+    'history.advanced_sidebets_title': 'Mises latérales',
+    'history.advanced_sidebets_empty': "Vous n'avez encore joué aucune mise latérale.",
+    'history.advanced_sidebets_col_type': 'Type',
+    'history.advanced_sidebets_col_count': 'Jouées',
+    'history.advanced_sidebets_col_wagered': 'Misé',
+    'history.advanced_sidebets_col_net': 'Net',
+    'history.advanced_sidebets_col_hitrate': '% Réussite',
+    'history.advanced_tournaments_title': 'Tournois',
+    'history.advanced_tournaments_empty': "Vous n'avez encore joué aucun Tournoi.",
+    'history.advanced_tournaments_col_date': 'Date',
+    'history.advanced_tournaments_col_name': 'Tournoi',
+    'history.advanced_tournaments_col_rank': 'Rang',
+    'history.advanced_tournaments_col_chips': 'Jetons finaux',
+    'leaderboard.col_tournament_wins': 'Tournois gagnés',
 }
 _STRINGS_PT: dict[str, str] = {
     'animations.achievement_for_player': 'CONQUISTA DE {name}',
@@ -1795,6 +1864,27 @@ _STRINGS_PT: dict[str, str] = {
     'tutorial.page5_body2': 'O treino de Contagem de Cartas (menu principal) permite praticar o sistema Hi-Lo sem arriscar fichas.',
     'tutorial.page5_body3': 'Podes adicionar adversários controlados por IA à tua mesa, que jogam com estratégia básica.',
     'tutorial.page5_body4': 'Consulta as Definições para alterar as regras da casa, idioma, tema visual e volume.',
+    'history.advanced_button': 'Avançado',
+    'history.table_view_button': 'Histórico',
+    'history.advanced_risk_title': 'Risco',
+    'history.advanced_hands_analyzed': 'Mãos analisadas: {n}',
+    'history.advanced_stddev': 'Desvio padrão por mão: ±{value}',
+    'history.advanced_drawdown': 'Drawdown máximo: -{value} ({pct})',
+    'history.advanced_no_data': 'Ainda não há mãos suficientes para calcular isto.',
+    'history.advanced_sidebets_title': 'Apostas laterais',
+    'history.advanced_sidebets_empty': 'Ainda não jogaste nenhuma aposta lateral.',
+    'history.advanced_sidebets_col_type': 'Tipo',
+    'history.advanced_sidebets_col_count': 'Jogadas',
+    'history.advanced_sidebets_col_wagered': 'Apostado',
+    'history.advanced_sidebets_col_net': 'Líquido',
+    'history.advanced_sidebets_col_hitrate': '% Acerto',
+    'history.advanced_tournaments_title': 'Torneios',
+    'history.advanced_tournaments_empty': 'Ainda não jogaste nenhum Torneio.',
+    'history.advanced_tournaments_col_date': 'Data',
+    'history.advanced_tournaments_col_name': 'Torneio',
+    'history.advanced_tournaments_col_rank': 'Posição',
+    'history.advanced_tournaments_col_chips': 'Fichas finais',
+    'leaderboard.col_tournament_wins': 'Torneios vencidos',
 }
 _STRINGS_DE: dict[str, str] = {
     'animations.achievement_for_player': 'ERFOLG VON {name}',
@@ -2177,6 +2267,27 @@ _STRINGS_DE: dict[str, str] = {
     'tutorial.page5_body2': 'Das Kartenzähl-Training (Hauptmenü) lässt dich das Hi-Lo-System ohne Risiko üben.',
     'tutorial.page5_body3': 'Du kannst KI-gesteuerte Gegner an deinen Tisch holen, die mit Basisstrategie spielen.',
     'tutorial.page5_body4': 'Schau in den Einstellungen nach, um Hausregeln, Sprache, visuelles Thema und Lautstärke zu ändern.',
+    'history.advanced_button': 'Erweitert',
+    'history.table_view_button': 'Verlauf',
+    'history.advanced_risk_title': 'Risiko',
+    'history.advanced_hands_analyzed': 'Analysierte Hände: {n}',
+    'history.advanced_stddev': 'Standardabweichung pro Hand: ±{value}',
+    'history.advanced_drawdown': 'Maximaler Drawdown: -{value} ({pct})',
+    'history.advanced_no_data': 'Noch nicht genug Hände, um dies zu berechnen.',
+    'history.advanced_sidebets_title': 'Nebenwetten',
+    'history.advanced_sidebets_empty': 'Du hast noch keine Nebenwette gespielt.',
+    'history.advanced_sidebets_col_type': 'Typ',
+    'history.advanced_sidebets_col_count': 'Gespielt',
+    'history.advanced_sidebets_col_wagered': 'Eingesetzt',
+    'history.advanced_sidebets_col_net': 'Netto',
+    'history.advanced_sidebets_col_hitrate': '% Treffer',
+    'history.advanced_tournaments_title': 'Turniere',
+    'history.advanced_tournaments_empty': 'Du hast noch kein Turnier gespielt.',
+    'history.advanced_tournaments_col_date': 'Datum',
+    'history.advanced_tournaments_col_name': 'Turnier',
+    'history.advanced_tournaments_col_rank': 'Platz',
+    'history.advanced_tournaments_col_chips': 'Endchips',
+    'leaderboard.col_tournament_wins': 'Gewonnene Turniere',
 }
 STRINGS["fr"].update(_STRINGS_FR)
 STRINGS["pt"].update(_STRINGS_PT)

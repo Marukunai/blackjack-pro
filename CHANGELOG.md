@@ -7,6 +7,24 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/). Las fases (Fase 1,
 Fase 2...) hacen referencia a los hitos de desarrollo tal y como se han ido
 nombrando en los mensajes de commit.
 
+## [1.7.0] - 2026-11-23
+
+### Añadido
+- Fase 42: estadísticas avanzadas en el historial (botón "Avanzado") --
+  varianza/desviación típica del resultado por mano, máximo drawdown
+  (mayor caída desde un pico, sobre todo el historial) y desglose de
+  rentabilidad por apuesta lateral (jugadas/apostado/neto/% acierto por
+  cada tipo: Parejas Perfectas, 21+3, Lucky Ladies, Royal Match).
+- Fase 42: los resultados del modo Torneo ahora se guardan en el
+  historial de cada perfil con asiento (fecha, torneo, puesto/asientos,
+  fichas finales) -- antes se perdían al volver al menú principal en
+  cuanto terminaba el Torneo.
+- Fase 42: columna "Torneos ganados" en la comparativa de perfiles
+  (leaderboard).
+- 15 tests nuevos (`tests/test_advanced_stats.py`) cubriendo el nuevo
+  historial de apuestas laterales, los resultados de Torneo y el cálculo
+  de varianza/drawdown (230 tests en total).
+
 ## [1.6.0] - 2026-10-19
 
 ### Añadido
@@ -129,6 +147,7 @@ explícito en el código (reconstruido aquí a partir del historial de commits).
 - Apuestas laterales en la interfaz (Parejas Perfectas, 21+3), sintetizador
   de efectos de sonido y música, y mejoras visuales en la mesa.
 
+[1.7.0]: https://github.com/Marukunai/blackjack-pro/releases/tag/v1.7.0
 [1.6.0]: https://github.com/Marukunai/blackjack-pro/releases/tag/v1.6.0
 [1.4.0]: https://github.com/Marukunai/blackjack-pro/releases/tag/v1.4.0
 [1.3.0]: https://github.com/Marukunai/blackjack-pro/releases/tag/v1.3.0

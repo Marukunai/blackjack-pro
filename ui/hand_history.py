@@ -88,14 +88,30 @@ class HandHistoryScreen:
         # sea cual sea el idioma (el texto del botón se centra dentro de
         # un ancho fijo, no crece con la traducción).
         self._export_rect = pygame.Rect(self._back_rect.x - 20 - 170, self.sh - 78, 170, 44)
+        # Fase 42: botón para alternar entre la tabla de siempre y la
+        # vista "avanzada" (varianza/drawdown, desglose de apuestas
+        # laterales, resultados de Torneo) -- a la derecha de Volver,
+        # simétrico con Exportar CSV a su izquierda, mismo alto y eje Y
+        # que ya usan esos dos botones así que nunca se solapan.
+        self._advanced_rect = pygame.Rect(self._back_rect.right + 20, self.sh - 78, 170, 44)
         self._prev_rect = pygame.Rect(0, 0, 0, 0)
         self._next_rect = pygame.Rect(0, 0, 0, 0)
         self._tab_rects: list[pygame.Rect] = []
         self._replay_rects: list[tuple[pygame.Rect, dict]] = []
         self._back_hover = self._prev_hover = self._next_hover = self._export_hover = False
+        self._advanced_hover = False
         self._export_msg: Optional[str] = None
         self._export_msg_color: tuple = (150, 150, 150)
         self._export_msg_until: float = 0.0
+
+        # Fase 42: "table" (de siempre) o "advanced" -- datos cargados en
+        # _load_advanced(), llamada desde _load_profile() cada vez que se
+        # cambia de perfil, igual que _chip_curve.
+        self._view_mode: str = "table"
+        self._risk_metrics: dict = {}
+        self._side_bet_breakdown: dict = {}
+        self._tournament_results: list = []
+        self._load_advanced()
 
     # ------------------------------------------------------------------
     @property
@@ -115,7 +131,23 @@ class HandHistoryScreen:
         pid = self.profile_id
         self._total = self.store.count_history(pid) if pid is not None else 0
         self._chip_curve = self.store.get_chip_curve(pid, limit=CHART_LIMIT) if pid is not None else []
+        self._load_advanced()
         self._load_page()
+
+    def _load_advanced(self) -> None:
+        """Datos de la vista "avanzada" (Fase 42): métricas de riesgo,
+        desglose de apuestas laterales y resultados de Torneo -- del
+        perfil actualmente seleccionado en las pestañas, no de todos."""
+        pid = self.profile_id
+        if pid is None:
+            self._risk_metrics = {}
+            self._side_bet_breakdown = {}
+            self._tournament_results = []
+            return
+        from engine.statistics import compute_risk_metrics
+        self._risk_metrics = compute_risk_metrics(pid)
+        self._side_bet_breakdown = self.store.get_side_bet_breakdown(pid)
+        self._tournament_results = self.store.get_tournament_results(pid, limit=10)
 
     def _load_page(self) -> None:
         pid = self.profile_id
@@ -167,6 +199,7 @@ class HandHistoryScreen:
         if event.type == pygame.MOUSEMOTION:
             self._back_hover = self._back_rect.collidepoint(event.pos)
             self._export_hover = self._export_rect.collidepoint(event.pos)
+            self._advanced_hover = self._advanced_rect.collidepoint(event.pos)
             self._prev_hover = self._prev_rect.collidepoint(event.pos)
             self._next_hover = self._next_rect.collidepoint(event.pos)
 
@@ -176,6 +209,9 @@ class HandHistoryScreen:
                 return
             if self._total > 0 and self._export_rect.collidepoint(event.pos):
                 self._export_csv()
+                return
+            if self.profile_id is not None and self._advanced_rect.collidepoint(event.pos):
+                self._view_mode = "advanced" if self._view_mode == "table" else "table"
                 return
             if self._prev_rect.collidepoint(event.pos):
                 self._go_page(-1)
@@ -239,7 +275,9 @@ class HandHistoryScreen:
         surf.blit(title, (self.sw // 2 - title.get_width() // 2, top))
         top += 56
 
-        if self._total == 0:
+        if self._view_mode == "advanced" and self.profile_id is not None:
+            self._draw_advanced(surf, top)
+        elif self._total == 0:
             empty = self._font_row.render(
                 i18n.t("history.empty_state"), True, (150, 150, 150))
             surf.blit(empty, (self.sw // 2 - empty.get_width() // 2, top + 60))
@@ -247,7 +285,8 @@ class HandHistoryScreen:
             self._draw_table(surf, top)
             self._draw_chip_chart(surf)
 
-        self._draw_pagination(surf)
+        if self._view_mode == "table":
+            self._draw_pagination(surf)
         self._draw_back(surf)
 
     def _draw_tabs(self, surf: pygame.Surface, y: int) -> None:
@@ -415,6 +454,123 @@ class HandHistoryScreen:
         pygame.draw.rect(surf, cfg.COLOR_BG, bg_rect, border_radius=3)
         surf.blit(lbl, pos)
 
+    def _draw_advanced(self, surf: pygame.Surface, top: int) -> None:
+        """Vista "avanzada" (Fase 42): varianza/drawdown, desglose de
+        rentabilidad por apuesta lateral y resultados de Torneo del
+        perfil activo -- sustituye a la tabla+gráfica de siempre en el
+        mismo hueco, así que no necesita su propio scroll ni paginación."""
+        x0 = self.sw // 2 - _TABLE_W // 2
+        y = top
+
+        m = self._risk_metrics
+        if not m or m.get("hands", 0) < 2:
+            msg = self._font_row.render(i18n.t("history.advanced_no_data"), True, (150, 150, 150))
+            surf.blit(msg, (x0, y))
+            y += 40
+        else:
+            risk_title = self._font_head.render(i18n.t("history.advanced_risk_title"), True, cfg.COLOR_GOLD)
+            surf.blit(risk_title, (x0, y))
+            y += 26
+            lines = [
+                i18n.t("history.advanced_hands_analyzed", n=m["hands"]),
+                i18n.t("history.advanced_stddev", value=f"{m['net_stddev']:.1f}"),
+                i18n.t("history.advanced_drawdown", value=f"{m['max_drawdown']:.0f}",
+                       pct=f"{m['max_drawdown_pct']:.1%}"),
+            ]
+            for line in lines:
+                lbl = self._font_row.render(line, True, cfg.COLOR_TEXT)
+                surf.blit(lbl, (x0, y))
+                y += 24
+            y += 10
+
+        y = self._draw_side_bet_breakdown(surf, x0, y)
+        self._draw_tournament_results(surf, x0, y)
+
+    def _draw_side_bet_breakdown(self, surf: pygame.Surface, x0: int, y: int) -> int:
+        title = self._font_head.render(i18n.t("history.advanced_sidebets_title"), True, cfg.COLOR_GOLD)
+        surf.blit(title, (x0, y))
+        y += 28
+
+        breakdown = self._side_bet_breakdown
+        if not breakdown:
+            empty = self._font_small.render(i18n.t("history.advanced_sidebets_empty"), True, (130, 130, 130))
+            surf.blit(empty, (x0, y))
+            return y + 34
+
+        cols = [
+            (i18n.t("history.advanced_sidebets_col_type"), 180),
+            (i18n.t("history.advanced_sidebets_col_count"), 110),
+            (i18n.t("history.advanced_sidebets_col_wagered"), 130),
+            (i18n.t("history.advanced_sidebets_col_net"), 130),
+            (i18n.t("history.advanced_sidebets_col_hitrate"), 120),
+        ]
+        cx = x0
+        for label, w in cols:
+            lbl = self._font_head.render(label, True, (150, 150, 150))
+            surf.blit(lbl, (cx, y))
+            cx += w
+        y += 24
+
+        for kind, data in sorted(breakdown.items(), key=lambda kv: kv[1]["wagered"], reverse=True):
+            cx = x0
+            surf.blit(self._font_row.render(i18n.side_bet_kind_label(kind), True, cfg.COLOR_TEXT), (cx, y))
+            cx += cols[0][1]
+            surf.blit(self._font_row.render(str(data["count"]), True, cfg.COLOR_TEXT), (cx, y))
+            cx += cols[1][1]
+            surf.blit(self._font_row.render(f"${data['wagered']:.0f}", True, cfg.COLOR_TEXT), (cx, y))
+            cx += cols[2][1]
+            net = data["net"]
+            net_col = cfg.COLOR_WIN if net > 0 else (cfg.COLOR_LOSE if net < 0 else cfg.COLOR_PUSH)
+            surf.blit(self._font_row.render(f"{net:+.0f}", True, net_col), (cx, y))
+            cx += cols[3][1]
+            hit_pct = (data["hits"] / data["count"] * 100.0) if data["count"] else 0.0
+            surf.blit(self._font_row.render(f"{hit_pct:.0f}%", True, cfg.COLOR_TEXT), (cx, y))
+            y += 24
+
+        return y + 14
+
+    def _draw_tournament_results(self, surf: pygame.Surface, x0: int, y: int) -> int:
+        title = self._font_head.render(i18n.t("history.advanced_tournaments_title"), True, cfg.COLOR_GOLD)
+        surf.blit(title, (x0, y))
+        y += 28
+
+        results = self._tournament_results
+        if not results:
+            empty = self._font_small.render(i18n.t("history.advanced_tournaments_empty"), True, (130, 130, 130))
+            surf.blit(empty, (x0, y))
+            return y + 34
+
+        cols = [
+            (i18n.t("history.advanced_tournaments_col_date"), 190),
+            (i18n.t("history.advanced_tournaments_col_name"), 220),
+            (i18n.t("history.advanced_tournaments_col_rank"), 130),
+            (i18n.t("history.advanced_tournaments_col_chips"), 160),
+        ]
+        cx = x0
+        for label, w in cols:
+            lbl = self._font_head.render(label, True, (150, 150, 150))
+            surf.blit(lbl, (cx, y))
+            cx += w
+        y += 24
+
+        for row in results:
+            cx = x0
+            try:
+                date_str = time.strftime("%d/%m/%Y %H:%M", time.localtime(row["played_at"]))
+            except (OSError, ValueError):
+                date_str = "—"
+            surf.blit(self._font_row.render(date_str, True, cfg.COLOR_TEXT), (cx, y))
+            cx += cols[0][1]
+            surf.blit(self._font_row.render(row["tournament_name"], True, cfg.COLOR_TEXT), (cx, y))
+            cx += cols[1][1]
+            rank_col = {1: cfg.COLOR_BJ, 2: (205, 205, 205), 3: (205, 140, 80)}.get(row["rank"], cfg.COLOR_TEXT)
+            surf.blit(self._font_row.render(f"{row['rank']}/{row['seats']}", True, rank_col), (cx, y))
+            cx += cols[2][1]
+            surf.blit(self._font_row.render(f"${row['final_chips']:.0f}", True, cfg.COLOR_TEXT), (cx, y))
+            y += 24
+
+        return y + 14
+
     def _draw_pagination(self, surf: pygame.Surface) -> None:
         pag_y = self.sh - 128
         self._prev_rect = pygame.Rect(self.sw // 2 - 170, pag_y, 40, 36)
@@ -452,6 +608,17 @@ class HandHistoryScreen:
             surf.blit(exp_txt, (self._export_rect.centerx - exp_txt.get_width() // 2,
                                  self._export_rect.centery - exp_txt.get_height() // 2))
 
+        # Fase 42: alterna entre la tabla de siempre y la vista avanzada
+        # -- solo tiene sentido con un perfil con fichas/historial propio.
+        if self.profile_id is not None:
+            adv_col = cfg.COLOR_GOLD if self._advanced_hover else (150, 150, 150)
+            pygame.draw.rect(surf, (20, 15, 0), self._advanced_rect, border_radius=10)
+            pygame.draw.rect(surf, adv_col, self._advanced_rect, 2, border_radius=10)
+            adv_key = "history.table_view_button" if self._view_mode == "advanced" else "history.advanced_button"
+            adv_txt = self._font_row.render(i18n.t(adv_key), True, adv_col)
+            surf.blit(adv_txt, (self._advanced_rect.centerx - adv_txt.get_width() // 2,
+                                 self._advanced_rect.centery - adv_txt.get_height() // 2))
+
         # La línea inferior de pistas de teclado se sustituye unos
         # segundos por el resultado de la exportación (éxito/error) en
         # vez de añadir una zona nueva a la pantalla -- mismo sitio,
@@ -461,9 +628,14 @@ class HandHistoryScreen:
             surf.blit(msg, (self.sw // 2 - msg.get_width() // 2, self.sh - 24))
             return
 
-        hint_parts = [i18n.t("history.hint_page_arrows"), i18n.t("history.hint_esc_exit")]
+        # Fase 42: en vista avanzada no hay paginación que recorrer con
+        # flechas, así que esa pista se omite (y no pisa sitio si la
+        # pista de exportar sigue presente, que sí tiene sentido en
+        # ambas vistas: el CSV siempre exporta el historial completo).
+        hint_parts = ([i18n.t("history.hint_page_arrows")] if self._view_mode == "table" else []) \
+            + [i18n.t("history.hint_esc_exit")]
         if len(self.profiles) > 1:
-            hint_parts.insert(1, i18n.t("history.hint_tab_switch"))
+            hint_parts.insert(len(hint_parts) - 1, i18n.t("history.hint_tab_switch"))
         if self._total > 0:
             hint_parts.insert(-1, i18n.t("history.export_hint"))
         hint = self._font_small.render(" · ".join(hint_parts), True, (90, 90, 90))

@@ -1805,14 +1805,37 @@ class Renderer:
         -- el resultado se congela en self._tournament_rankings para
         toda la pantalla de fin de Torneo, así que esto solo se calcula
         una vez por partida."""
-        rows: list[tuple[str, float, tuple]] = []
+        # Fase 42: se lleva el profile_id de cada asiento emparejado con
+        # su fila para poder guardar el resultado, sin arriesgarse a
+        # reidentificar el asiento más tarde por nombre+fichas (podría
+        # haber dos asientos con el mismo nombre y las mismas fichas).
+        extended: list[tuple[str, float, tuple, Optional[int]]] = []
         for i, player in enumerate(self._engine.players):
             name = self._seat_names[i] if i < len(self._seat_names) else player.name
             avatar = (self._seat_avatars[i] if i < len(self._seat_avatars)
                       else ("S", (212, 175, 55)))
-            rows.append((name, player.chips, avatar))
-        rows.sort(key=lambda r: r[1], reverse=True)
-        return rows
+            pid = self._engine.stats_mgrs[i].profile_id
+            extended.append((name, player.chips, avatar, pid))
+        extended.sort(key=lambda r: r[1], reverse=True)
+
+        # Se guarda el resultado final en el historial de cada asiento
+        # que tenga perfil local (los Bots no tienen) -- antes se perdía
+        # en cuanto se volvía al menú. rank 1 = más fichas; empates
+        # comparten posición, igual que se ve en la propia pantalla.
+        if self._tournament is not None:
+            from engine.profile_store import get_store
+            store = get_store()
+            seats = len(extended)
+            rank = 1
+            for pos, (name, chips, avatar, pid) in enumerate(extended):
+                if pos > 0 and chips < extended[pos - 1][1]:
+                    rank = pos + 1
+                if pid is not None:
+                    store.log_tournament_result(
+                        pid, self._tournament.id, self._tournament.name,
+                        rank=rank, seats=seats, final_chips=chips)
+
+        return [(name, chips, avatar) for name, chips, avatar, _pid in extended]
 
     def _draw_tournament_end(self, surf: pygame.Surface) -> None:
         """Pantalla de fin de Torneo (Fase 39) -- clasificación final de

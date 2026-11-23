@@ -30,6 +30,9 @@ _COLUMNS: list[tuple[str, str, int]] = [
     ("blackjacks",   "leaderboard.col_blackjacks",    120),
     ("best_streak",  "leaderboard.col_best_streak",   120),
     ("achievements", "leaderboard.col_achievements",  110),
+    # Fase 42: Torneos ganados (engine/tournament.py) -- antes de esta
+    # fase el resultado de un Torneo no se guardaba en ningún sitio.
+    ("tournament_wins", "leaderboard.col_tournament_wins", 130),
 ]
 
 
@@ -38,6 +41,7 @@ def _row_data(store, p: dict) -> dict:
     won = p.get("hands_won", 0) or 0
     win_pct = (won / hands * 100.0) if hands else 0.0
     n_ach = len(store.get_unlocked_achievement_ids(p["id"]))
+    tournament_wins = store.get_tournament_summary(p["id"])["wins"]
     return {
         "id": p["id"], "name": p["name"],
         "avatar_shape": p.get("avatar_shape", "S"),
@@ -48,6 +52,7 @@ def _row_data(store, p: dict) -> dict:
         "blackjacks": p.get("blackjacks", 0),
         "best_streak": p.get("best_streak", 0),
         "achievements": n_ach,
+        "tournament_wins": tournament_wins,
     }
 
 
@@ -219,6 +224,11 @@ class LeaderboardScreen:
             ach_col = cfg.COLOR_GOLD if row["achievements"] == _TOTAL_ACHIEVEMENTS else cfg.COLOR_TEXT
             surf.blit(self._font_row.render(f"{row['achievements']}/{_TOTAL_ACHIEVEMENTS}", True, ach_col),
                       (cx, y + 6))
+            cx += _COLUMNS[7][2]
+
+            tw = row["tournament_wins"]
+            tw_col = cfg.COLOR_GOLD if tw > 0 else (120, 120, 120)
+            surf.blit(self._font_row.render(str(tw), True, tw_col), (cx, y + 6))
 
             y += row_h
 
