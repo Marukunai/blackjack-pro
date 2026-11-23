@@ -56,9 +56,20 @@ class TestEngineFlow:
         self.engine.start_game()
         chips_before = self.engine.player.chips
         self.engine.place_bet(50)
-        # Las fichas disminuyen al apostar (se recuperan al resolver)
-        # Al menos durante el turno el saldo baja
-        assert self.engine.player.chips <= chips_before
+        # Las fichas disminuyen al apostar (se recuperan al resolver).
+        # OJO: con un único jugador y auto_advance=True (modo consola, ver
+        # GameEngine.__init__), un Blackjack natural puede resolver la
+        # ronda entera -- reparto, pago 3:2 incluido -- de forma síncrona
+        # dentro de esta misma llamada a place_bet() (test_place_valid_bet,
+        # justo arriba, ya contempla este mismo caso para el estado
+        # resultante: BETTING/PAYOUT, no solo PLAYER_TURN/INSURANCE). En
+        # ese caso el saldo final puede acabar POR ENCIMA del inicial, así
+        # que la comprobación depende de si la ronda sigue en curso o ya
+        # se resolvió sola.
+        if self.engine.state in (GameState.BETTING, GameState.GAME_OVER):
+            assert self.engine.player.stats.hands_played >= 1
+        else:
+            assert self.engine.player.chips == chips_before - 50
 
     def test_invalid_action_outside_turn(self):
         self.engine.start_game()
@@ -78,7 +89,7 @@ class TestEngineCallbacks:
     def test_card_dealt_callback(self):
         cards = []
         engine = GameEngine(rules=vegas_strip())
-        engine.on("on_card_dealt", lambda c, t, i: cards.append((t, i)))
+        engine.on("on_card_dealt", lambda c, t, i, *extra: cards.append((t, i)))
         engine.start_game()
         engine.place_bet(10)
         # Deben haberse repartido al menos 4 cartas (2 jugador + 2 crupier)

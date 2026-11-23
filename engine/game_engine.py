@@ -27,7 +27,10 @@ from engine.actions import (
 )
 from engine.game_state import GameState, ActionResult, RoundResult
 from engine.payout import apply_payouts, HandPayout
-from engine.side_bets import evaluate_perfect_pairs, evaluate_21_plus_3, SideBetOutcome
+from engine.side_bets import (
+    evaluate_perfect_pairs, evaluate_21_plus_3,
+    evaluate_lucky_ladies, evaluate_royal_match, SideBetOutcome,
+)
 from engine.statistics import StatisticsManager
 
 
@@ -83,6 +86,9 @@ class GameEngine:
             Player(name=p.get("name", "Jugador"), chips=self.rules.starting_chips)
             for p in players
         ]
+        for i, p in enumerate(players):
+            self.players[i].is_bot = bool(p.get("is_bot", False))
+            self.players[i].bot_personality = p.get("bot_personality", "perfect")
         self.stats_mgrs: list[StatisticsManager] = [
             StatisticsManager(self.players[i], profile_id=players[i].get("profile_id"))
             for i in range(len(players))
@@ -189,11 +195,13 @@ class GameEngine:
         self._begin_betting_round()
 
     def place_bet(self, amount: float, perfect_pairs: float = 0.0,
-                  twentyone_plus_three: float = 0.0) -> bool:
+                  twentyone_plus_three: float = 0.0, lucky_ladies: float = 0.0,
+                  royal_match: float = 0.0) -> bool:
         """
         El jugador con el foco coloca su apuesta principal y, opcionalmente,
-        sus apuestas laterales (Parejas Perfectas / 21+3 — ignoradas si la
-        cantidad es 0 o si la regla correspondiente no está activa).
+        sus apuestas laterales (Parejas Perfectas / 21+3 / Lucky Ladies /
+        Royal Match — ignoradas si la cantidad es 0 o si la regla
+        correspondiente no está activa).
         Devuelve True si es válida; en ese caso pasa el foco al siguiente
         jugador pendiente de apostar, o reparte si ya han apostado todos.
         """
@@ -207,20 +215,24 @@ class GameEngine:
             perfect_pairs = 0.0
         if not self.rules.twentyone_plus_three_allowed:
             twentyone_plus_three = 0.0
-        for side_amount in (perfect_pairs, twentyone_plus_three):
+        if not self.rules.lucky_ladies_allowed:
+            lucky_ladies = 0.0
+        if not self.rules.royal_match_allowed:
+            royal_match = 0.0
+        for side_amount in (perfect_pairs, twentyone_plus_three, lucky_ladies, royal_match):
             if side_amount and not (0 < side_amount <= self.rules.side_bet_max):
                 self._emit("on_message", i18n.t("engine.invalid_side_bet", max=self.rules.side_bet_max))
                 return False
 
-        total = amount + perfect_pairs + twentyone_plus_three
+        total = amount + perfect_pairs + twentyone_plus_three + lucky_ladies + royal_match
         if not self.player.can_afford(total):
             self._emit("on_message", i18n.t("engine.not_enough_chips"))
             return False
 
         self.player.place_bet(amount)
         self.player.new_round(amount)
-        if perfect_pairs or twentyone_plus_three:
-            self.player.place_side_bets(perfect_pairs, twentyone_plus_three)
+        if perfect_pairs or twentyone_plus_three or lucky_ladies or royal_match:
+            self.player.place_side_bets(perfect_pairs, twentyone_plus_three, lucky_ladies, royal_match)
         self._advance_to_next_bettor()
         return True
 
@@ -485,6 +497,28 @@ class GameEngine:
             else:
                 outcomes.append(SideBetOutcome("21+3", label, 0.0, bet, -bet, 0.0))
 
+        if player.lucky_ladies_bet > 0:
+            bet = player.lucky_ladies_bet
+            label, mult = evaluate_lucky_ladies(hand)
+            if mult > 0:
+                win = bet * mult
+                player.receive(bet + win)
+                player.stats.lucky_ladies_wins += 1
+                outcomes.append(SideBetOutcome("lucky_ladies", label, mult, bet, win, bet + win))
+            else:
+                outcomes.append(SideBetOutcome("lucky_ladies", label, 0.0, bet, -bet, 0.0))
+
+        if player.royal_match_bet > 0:
+            bet = player.royal_match_bet
+            label, mult = evaluate_royal_match(hand)
+            if mult > 0:
+                win = bet * mult
+                player.receive(bet + win)
+                player.stats.royal_match_wins += 1
+                outcomes.append(SideBetOutcome("royal_match", label, mult, bet, win, bet + win))
+            else:
+                outcomes.append(SideBetOutcome("royal_match", label, 0.0, bet, -bet, 0.0))
+
         if outcomes:
             self._emit("on_side_bets_result", player_index, outcomes)
 
@@ -597,10 +631,17 @@ class GameEngine:
         payouts_by_player: list[list[HandPayout]] = []
         flat: list[HandPayout] = []
 
+        # Fase 37: para el logro "contra las máquinas" -- basta con que
+        # haya algún asiento de IA en la mesa, sin importar cuál gane.
+        table_has_bot = any(p.is_bot for p in self.players)
+
         for i, player in enumerate(self.players):
             payouts = apply_payouts(player, self.dealer, self.rules)
             payouts_by_player.append(payouts)
             flat.extend(payouts)
+
+            if table_has_bot:
+                player.stats.hands_vs_bot += 1
 
             mgr = self.stats_mgrs[i]
             mgr.log_round(payouts, dealer=self.dealer)

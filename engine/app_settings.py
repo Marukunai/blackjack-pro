@@ -38,6 +38,14 @@ _DEFAULTS: dict[str, Any] = {
     # ningún intento registrado.
     "counting_best_accuracy": None,   # float 0.0-1.0, o None
     "counting_best_streak": 0,        # int, racha de aciertos más larga
+    # Fase 41: accesibilidad -- tamaño de letra ("normal"/"large", ver
+    # config/settings.py::FONT_SCALE_OPTIONS) y alto contraste (bool).
+    # Mismo motivo que table_theme/language: son del DISPOSITIVO, no de
+    # un perfil, y None = usar el valor por defecto de config/settings.py
+    # (una instalación nueva se comporta igual que antes de que existiera
+    # este ajuste).
+    "font_scale": None,
+    "high_contrast": None,
 }
 
 

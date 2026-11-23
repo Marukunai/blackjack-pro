@@ -103,6 +103,10 @@ _ACHIEVEMENTS_EN: dict[str, tuple[str, str]] = {
     'streak_15': ('Legendary streak', 'Win 15 hands in a row.'),
     'streak_5': ('On a roll', 'Win 5 hands in a row.'),
     'whale': ('Whale', 'Reach 10000 chips.'),
+    'lucky_lady': ('Lady Luck', 'Win with the Lucky Ladies side bet.'),
+    'royal_pair': ('Royal pair', 'Win with the Royal Match side bet.'),
+    'vs_bots': ('Against the machines', 'Play a hand at a table with an AI opponent.'),
+    'backup_used': ('Backed up', 'Export or import a profile backup.'),
 }
 _ACHIEVEMENTS_FR: dict[str, tuple[str, str]] = {
     'bj_10': ('As de la maison', 'Obtenez 10 Blackjacks.'),
@@ -126,6 +130,10 @@ _ACHIEVEMENTS_FR: dict[str, tuple[str, str]] = {
     'streak_15': ('Série légendaire', "Enchaînez 15 victoires d'affilée."),
     'streak_5': ('Sur une lancée', "Enchaînez 5 victoires d'affilée."),
     'whale': ('Baleine', 'Atteignez 10000 jetons.'),
+    'lucky_lady': ('Dame de la chance', 'Gagnez avec la mise latérale Lucky Ladies.'),
+    'royal_pair': ('Paire royale', 'Gagnez avec la mise latérale Royal Match.'),
+    'vs_bots': ('Contre les machines', 'Jouez une main à une table avec un adversaire IA.'),
+    'backup_used': ('Sauvegardé', 'Exportez ou importez une sauvegarde de profil.'),
 }
 _ACHIEVEMENTS_PT: dict[str, tuple[str, str]] = {
     'bj_10': ('Ás da casa', 'Consegue 10 Blackjacks.'),
@@ -149,6 +157,10 @@ _ACHIEVEMENTS_PT: dict[str, tuple[str, str]] = {
     'streak_15': ('Sequência lendária', 'Encadeia 15 vitórias seguidas.'),
     'streak_5': ('Em sequência', 'Encadeia 5 vitórias seguidas.'),
     'whale': ('Baleia', 'Alcança 10000 fichas.'),
+    'lucky_lady': ('Dama da sorte', 'Ganha com a aposta lateral Lucky Ladies.'),
+    'royal_pair': ('Par real', 'Ganha com a aposta lateral Royal Match.'),
+    'vs_bots': ('Contra as máquinas', 'Joga uma mão numa mesa com um adversário de IA.'),
+    'backup_used': ('Cópia de segurança', 'Exporta ou importa uma cópia de segurança do perfil.'),
 }
 _ACHIEVEMENTS_DE: dict[str, tuple[str, str]] = {
     'bj_10': ('Hausass', 'Hol dir 10 Blackjacks.'),
@@ -172,6 +184,10 @@ _ACHIEVEMENTS_DE: dict[str, tuple[str, str]] = {
     'streak_15': ('Legendäre Serie', 'Gewinne 15 Hände in Folge.'),
     'streak_5': ('In Fahrt', 'Gewinne 5 Hände in Folge.'),
     'whale': ('Wal', 'Erreiche 10000 Chips.'),
+    'lucky_lady': ('Glücksdame', 'Gewinne mit der Nebenwette Lucky Ladies.'),
+    'royal_pair': ('Königspaar', 'Gewinne mit der Nebenwette Royal Match.'),
+    'vs_bots': ('Gegen die Maschinen', 'Spiele eine Hand an einem Tisch mit einem KI-Gegner.'),
+    'backup_used': ('Gesichert', 'Exportiere oder importiere ein Profil-Backup.'),
 }
 _ACHIEVEMENT_TABLES: dict[str, dict[str, tuple[str, str]]] = {
     "en": _ACHIEVEMENTS_EN, "fr": _ACHIEVEMENTS_FR,
@@ -208,6 +224,33 @@ _CHALLENGE_TABLES: dict[str, dict[str, tuple[str, str]]] = {
     "pt": _CHALLENGES_PT, "de": _CHALLENGES_DE,
 }
 
+# engine/tournament.py -- id -> (nombre, descripción) por idioma, mismo
+# patrón que _CHALLENGE_TABLES de arriba.
+_TOURNAMENTS_EN: dict[str, tuple[str, str]] = {
+    'torneo_rapido': ('Quick Tournament', '10 hands, the same chips for every seat. Whoever has the most chips at the end takes the title.'),
+    'torneo_estandar': ('Standard Tournament', 'A full 20-hand table game. A long enough match for the final ranking to actually mean something.'),
+    'torneo_maraton': ('Marathon Tournament', '40 hands of endurance, with higher bet limits and a bigger starting stack.'),
+}
+_TOURNAMENTS_FR: dict[str, tuple[str, str]] = {
+    'torneo_rapido': ('Tournoi Rapide', 'Dix mains, les mêmes jetons pour chaque place. Celui qui a le plus de jetons à la fin remporte le titre.'),
+    'torneo_estandar': ('Tournoi Standard', 'Une partie complète de 20 mains. Assez longue pour que le classement final ait vraiment un sens.'),
+    'torneo_maraton': ('Tournoi Marathon', "40 mains d'endurance, avec des mises plus élevées et une mise de départ plus importante."),
+}
+_TOURNAMENTS_PT: dict[str, tuple[str, str]] = {
+    'torneo_rapido': ('Torneio Rápido', 'Dez mãos, as mesmas fichas para todos os lugares. Quem tiver mais fichas no final leva o título.'),
+    'torneo_estandar': ('Torneio Padrão', 'Uma partida completa de 20 mãos. Longa o suficiente para que a classificação final signifique mesmo alguma coisa.'),
+    'torneo_maraton': ('Torneio Maratona', 'Quarenta mãos de resistência, com apostas mais altas permitidas e mais fichas de partida.'),
+}
+_TOURNAMENTS_DE: dict[str, tuple[str, str]] = {
+    'torneo_rapido': ('Schnellturnier', 'Zehn Hände, für jeden Platz die gleichen Chips. Wer am Ende die meisten Chips hat, holt den Titel.'),
+    'torneo_estandar': ('Standardturnier', 'Eine vollständige Partie über 20 Hände -- lang genug, damit die Endwertung wirklich etwas bedeutet.'),
+    'torneo_maraton': ('Marathonturnier', 'Vierzig Ausdauer-Hände, mit höheren Einsatzlimits und mehr Startchips.'),
+}
+_TOURNAMENT_TABLES: dict[str, dict[str, tuple[str, str]]] = {
+    "en": _TOURNAMENTS_EN, "fr": _TOURNAMENTS_FR,
+    "pt": _TOURNAMENTS_PT, "de": _TOURNAMENTS_DE,
+}
+
 
 def achievement_text(ach) -> tuple[str, str]:
     """(nombre, descripción) del logro en el idioma activo; si falta la
@@ -228,6 +271,17 @@ def challenge_text(ch) -> tuple[str, str]:
         if pair:
             return pair
     return ch.name, ch.description
+
+
+def tournament_text(tn) -> tuple[str, str]:
+    """(nombre, descripción) del torneo en el idioma activo -- mismo
+    patrón que challenge_text() de arriba."""
+    table = _TOURNAMENT_TABLES.get(getattr(cfg, "LANGUAGE", "es"))
+    if table:
+        pair = table.get(tn.id)
+        if pair:
+            return pair
+    return tn.name, tn.description
 
 
 # config/rules_presets.py -- nombre interno (clave de PRESETS, no se
@@ -279,6 +333,11 @@ _SIDE_BET_LABELS_EN: dict[str, str] = {
     'Sin premio': 'No win',
     'Trío': 'Three of a kind',
     'Trío de color': 'Suited trips',
+    'Damas de corazones': 'Queens of hearts',
+    'Veinte del mismo palo': 'Suited 20',
+    'Veinte cualquiera': 'Any 20',
+    'Pareja real': 'Royal match',
+    'Pareja del mismo palo': 'Suited pair',
 }
 _SIDE_BET_LABELS_FR: dict[str, str] = {
     'Color': 'Couleur',
@@ -291,6 +350,11 @@ _SIDE_BET_LABELS_FR: dict[str, str] = {
     'Sin premio': 'Aucun gain',
     'Trío': 'Brelan',
     'Trío de color': 'Brelan de couleur',
+    'Damas de corazones': 'Dames de cœur',
+    'Veinte del mismo palo': '20 à la couleur',
+    'Veinte cualquiera': '20 quelconque',
+    'Pareja real': 'Royal match',
+    'Pareja del mismo palo': 'Paire à la couleur',
 }
 _SIDE_BET_LABELS_PT: dict[str, str] = {
     'Color': 'Cor',
@@ -303,6 +367,11 @@ _SIDE_BET_LABELS_PT: dict[str, str] = {
     'Sin premio': 'Sem prémio',
     'Trío': 'Trinca',
     'Trío de color': 'Trinca do mesmo naipe',
+    'Damas de corazones': 'Damas de copas',
+    'Veinte del mismo palo': '20 do mesmo naipe',
+    'Veinte cualquiera': '20 qualquer',
+    'Pareja real': 'Royal match',
+    'Pareja del mismo palo': 'Par do mesmo naipe',
 }
 _SIDE_BET_LABELS_DE: dict[str, str] = {
     'Color': 'Flush',
@@ -315,6 +384,11 @@ _SIDE_BET_LABELS_DE: dict[str, str] = {
     'Sin premio': 'Kein Gewinn',
     'Trío': 'Drilling',
     'Trío de color': 'Farbdrilling',
+    'Damas de corazones': 'Herz-Damen',
+    'Veinte del mismo palo': '20 in gleicher Farbe',
+    'Veinte cualquiera': 'Beliebige 20',
+    'Pareja real': 'Royal Match',
+    'Pareja del mismo palo': 'Paar in gleicher Farbe',
 }
 _SIDE_BET_TABLES: dict[str, dict[str, str]] = {
     "en": _SIDE_BET_LABELS_EN, "fr": _SIDE_BET_LABELS_FR,
@@ -327,6 +401,26 @@ def side_bet_label(label: str) -> str:
     if table:
         return table.get(label, label)
     return label
+
+
+# Fase 38: etiqueta traducida de una "personalidad" de bot
+# (ai/basic_strategy.py::apply_personality) -- un diccionario fijo de 5
+# idiomas x 3 valores en vez de claves _add() sueltas, porque es un
+# identificador interno cerrado (no texto libre) igual que PRESETS o los
+# temas visuales.
+_BOT_PERSONALITY_LABELS: dict[str, dict[str, str]] = {
+    "es": {"perfect": "Perfecto", "conservative": "Conservador", "aggressive": "Agresivo"},
+    "en": {"perfect": "Perfect", "conservative": "Conservative", "aggressive": "Aggressive"},
+    "fr": {"perfect": "Parfait", "conservative": "Conservateur", "aggressive": "Agressif"},
+    "pt": {"perfect": "Perfeito", "conservative": "Conservador", "aggressive": "Agressivo"},
+    "de": {"perfect": "Perfekt", "conservative": "Konservativ", "aggressive": "Aggressiv"},
+}
+
+
+def bot_personality_label(personality: str) -> str:
+    lang = getattr(cfg, "LANGUAGE", "es")
+    table = _BOT_PERSONALITY_LABELS.get(lang) or _BOT_PERSONALITY_LABELS["es"]
+    return table.get(personality, personality)
 
 
 # config/settings.py -- TABLE_THEMES / CARD_BACK_THEMES: clave interna
@@ -454,7 +548,16 @@ _add('profile.subtitle_default', 'Perfiles locales — sin contraseña, cada uno
 _add('profile.subtitle_seat', 'Elige quién se sienta en el siguiente asiento', 'Choose who sits in the next seat')
 _add('profile.leaderboard_button', 'Comparativa', 'Leaderboard')
 _add('profile.new_profile_button', '+  Nuevo perfil', '+  New profile')
-_add('profile.list_hint', 'Click en un perfil para continuar · lista: ver historial · papelera: borrar · N: nuevo perfil · Comparativa: comparar perfiles', 'Click a profile to continue · list icon: view history · trash icon: delete · N: new profile · Leaderboard: compare profiles')
+_add('profile.import_profile_button', 'Importar copia de seguridad...', 'Import a backup...')
+_add('profile.list_hint', 'Click en un perfil para continuar · lista: ver historial · nube: exportar copia · papelera: borrar · N: nuevo perfil · Comparativa: comparar perfiles', 'Click a profile to continue · list icon: view history · cloud icon: export backup · trash icon: delete · N: new profile · Leaderboard: compare profiles')
+_add('profile.export_success', "Copia de seguridad de '{name}' guardada en saves/backups/.", "Backup for '{name}' saved to saves/backups/.")
+_add('profile.export_error', 'No se pudo crear la copia de seguridad.', 'Could not create the backup.')
+_add('profile.import_success', "Perfil '{name}' importado correctamente.", "Profile '{name}' imported successfully.")
+_add('backup.browse_title', 'Importar copia de seguridad', 'Import a backup')
+_add('backup.browse_empty', 'No hay ninguna copia de seguridad en saves/backups/.', 'No backups found in saves/backups/.')
+_add('backup.browse_item_info', '{date} · ${chips} · {hands} manos · {achievements} logros', '{date} · ${chips} · {hands} hands · {achievements} achievements')
+_add('backup.back_button', 'Volver', 'Back')
+_add('backup.import_name_suffix', '{name} ({n})', '{name} ({n})')
 _add('profile.confirm_delete', '¿Borrar? Click de nuevo para confirmar', 'Delete? Click again to confirm')
 _add('profile.chips_hands_info', '{chips:.0f} fichas · {hands} manos jugadas', '{chips:.0f} chips · {hands} hands played')
 _add('profile.create_title', 'Nuevo perfil', 'New profile')
@@ -467,11 +570,14 @@ _add('profile.create_hint', 'Flechas para elegir avatar · Enter para crear · E
 _add('profile.seats_title', 'Jugadores en la mesa', 'Players at the table')
 _add('profile.seat_number', 'Asiento {n}', 'Seat {n}')
 _add('profile.add_player_button', '+  Añadir jugador', '+  Add player')
+_add('profile.add_bot_button', '+  Añadir Bot', '+  Add Bot')
+_add('profile.next_bot_hint', 'Próximo bot: {name}', 'Next bot: {name}')
 _add('profile.max_players_note', 'Máximo 3 jugadores en la mesa', 'Maximum 3 players at the table')
 _add('profile.play_button', 'Jugar', 'Play')
 _add('profile.play_solo_button', 'Jugar en solitario', 'Play solo')
 _add('profile.seats_hint_play', 'Enter para jugar', 'Enter to play')
-_add('profile.seats_hint_add', ' · A para añadir otro jugador', ' · A to add another player')
+_add('profile.seats_hint_add', ' · A para añadir otro jugador · B para añadir un Bot', ' · A to add another player · B to add a Bot')
+_add('profile.bot_seat_name', 'Bot', 'Bot')
 _add('history.col_date', 'Fecha', 'Date')
 _add('history.col_casino', 'Casino', 'Casino')
 _add('history.col_bet', 'Apuesta', 'Bet')
@@ -544,6 +650,21 @@ _add('challenge_select.detail_require_profit', 'Objetivo: acabar con más fichas
 _add('challenge_select.back_button', 'Volver', 'Back')
 _add('challenge_select.start_button', 'Empezar Desafío', 'Start Challenge')
 _add('challenge_select.hint', 'Flechas para moverte · Enter/Empezar confirma · Esc/Volver cancela', 'Arrows to move · Enter/Start confirms · Esc/Back cancels')
+
+# Fase 39: ui/tournament_select.py -- calcado de challenge_select.* de
+# arriba (mismo patrón de pantalla), sin las claves de objetivo
+# (target_chips/streak/fail_on_loss/require_profit) porque un Torneo no
+# tiene ninguna.
+_add('tournament_select.title', 'TORNEOS', 'TOURNAMENTS')
+_add('tournament_select.subtitle', 'Toda la mesa juega el mismo número de manos -- gana quien más fichas tenga al final', 'The whole table plays the same number of hands -- whoever has the most chips at the end wins')
+_add('tournament_select.item_facts', '{limit} manos · ${chips} iniciales', '{limit} hands · ${chips} starting')
+_add('tournament_select.detail_hand_limit', 'Límite de manos: {limit}', 'Hand limit: {limit}')
+_add('tournament_select.detail_starting_chips', 'Fichas iniciales: ${chips}', 'Starting chips: ${chips}')
+_add('tournament_select.detail_bet_range', 'Apuesta: ${min} - ${max}', 'Bet: ${min} - ${max}')
+_add('tournament_select.back_button', 'Volver', 'Back')
+_add('tournament_select.start_button', 'Empezar Torneo', 'Start Tournament')
+_add('tournament_select.hint', 'Flechas para moverte · Enter/Empezar confirma · Esc/Volver cancela', 'Arrows to move · Enter/Start confirms · Esc/Back cancels')
+
 _add('sidebets.perfect_pairs_label', 'Parejas Perfectas', 'Perfect Pairs')
 _add('sidebets.title', 'Apuestas laterales (opcional)', 'Side bets (optional)')
 _add('replay.no_data', 'No hay datos de repetición guardados para esta mano.', 'No replay data saved for this hand.')
@@ -572,6 +693,7 @@ _add("menu.hint_base", "Flechas arriba/abajo para seleccionar · Enter para juga
 _add("menu.hint_history_suffix", " · H: historial", " · H: history")
 _add("menu.history_button", "Historial", "History")
 _add("menu.challenges_button", "Desafíos", "Challenges")
+_add("menu.tournament_button", "Torneo", "Tournament")
 _add("menu.settings_button", "Ajustes", "Settings")
 # Fase 30: modo práctica de conteo de cartas.
 _add("menu.counting_button", "Conteo", "Counting")
@@ -601,6 +723,8 @@ _add("menu.field.five_card_charlie", "Five Card Charlie", "Five Card Charlie")
 _add("menu.field.original_bets_only", "OBBO (BJ del crupier)", "OBBO (dealer BJ)")
 _add("menu.field.perfect_pairs_allowed", "Apuesta lateral: Parejas Perfectas", "Side bet: Perfect Pairs")
 _add("menu.field.twentyone_plus_three_allowed", "Apuesta lateral: 21+3", "Side bet: 21+3")
+_add("menu.field.lucky_ladies_allowed", "Apuesta lateral: Lucky Ladies", "Side bet: Lucky Ladies")
+_add("menu.field.royal_match_allowed", "Apuesta lateral: Royal Match", "Side bet: Royal Match")
 _add("menu.field.side_bet_max", "Tope de apuesta lateral", "Side bet limit")
 
 _add("menu.yes", "Sí", "Yes")
@@ -619,6 +743,7 @@ _add("menu.max_splits_fmt", "{v} (hasta {n} manos)", "{v} (up to {n} hands)")
 # ------------------------------------------------------------------
 _add("renderer.title_add_seat", "¿Quién se sienta también?", "Who else is sitting down?")
 _add("renderer.challenge_preset_label", "Desafío: {name}", "Challenge: {name}")
+_add("renderer.tournament_preset_label", "Torneo: {name}", "Tournament: {name}")
 _add("renderer.training_mode_toggle", "Modo entrenamiento {state}", "Training mode {state}")
 _add("renderer.training_on", "activado", "on")
 _add("renderer.training_off", "desactivado", "off")
@@ -666,6 +791,7 @@ _add("renderer.net_roi_stat", "Neto: {net:+.0f}   ROI: {roi:+.1%}", "Net: {net:+
 _add("renderer.esc_to_menu", "ESC -> Menú principal", "ESC -> Main menu")
 _add("renderer.challenge_won_title", "¡DESAFÍO SUPERADO!", "CHALLENGE COMPLETE!")
 _add("renderer.challenge_lost_title", "DESAFÍO FALLIDO", "CHALLENGE FAILED")
+_add("renderer.tournament_end_title", "TORNEO TERMINADO", "TOURNAMENT OVER")
 _add("renderer.final_chips_net_stat", "Fichas finales: {chips}   Neto: {net:+.0f}",
      "Final chips: {chips}   Net: {net:+.0f}")
 _add("renderer.seat_doubles", "DOBLA", "DOUBLES")
@@ -715,6 +841,7 @@ _add("hud.action_surrender_or_hit", "Surrender (si no, Hit)", "Surrender (else H
 _add("hud.action_surrender_or_stand", "Surrender (si no, Stand)", "Surrender (else Stand)")
 _add("hud.action_surrender_or_split", "Surrender (si no, Split)", "Surrender (else Split)")
 _add("hud.challenge_hands_progress", "Mano {played}/{limit}", "Hand {played}/{limit}")
+_add("hud.tournament_hands_progress", "Mano {played}/{limit}", "Hand {played}/{limit}")
 _add("hud.strategy_hint", "Estrategia: {label}", "Strategy: {label}")
 _add("hud.training_badge", "Entrenamiento: {correct}/{total} ({pct:.0f}%)", "Training: {correct}/{total} ({pct:.0f}%)")
 _add("hud.category_blackjack", "Blackjack", "Blackjack")
@@ -754,6 +881,12 @@ _add("settings.language_section", "Idioma", "Language")
 _add("settings.music_label", "Música", "Music")
 _add("settings.sfx_label", "Efectos", "Sound effects")
 _add("settings.muted", "Silenciado", "Muted")
+_add("settings.font_scale_section", "Tamaño de letra", "Font size")
+_add("settings.font_scale_normal", "Normal", "Normal")
+_add("settings.font_scale_large", "Grande", "Large")
+_add("settings.high_contrast_section", "Alto contraste", "High contrast")
+_add("settings.on", "Sí", "On")
+_add("settings.off", "No", "Off")
 _add("settings.hint", "Click para aplicar al instante · arrastra los sliders de volumen · Esc/Volver para salir",
      "Click to apply instantly · drag the volume sliders · Esc/Back to exit")
 
@@ -807,6 +940,89 @@ _add("renderer.keybinds_hint", "F1: Hints  F2: Contador  F3: Stats  F4: Logros  
 _add("profile_store.empty_name", "El nombre no puede estar vacío.", "The name can't be empty.")
 _add("profile_store.duplicate_name", "Ya existe un perfil llamado «{name}».", "A profile named «{name}» already exists.")
 
+# ------------------------------------------------------------------
+# Fase 36: pantalla de tutorial / cómo jugar (ui/tutorial_screen.py),
+# accesible desde un botón nuevo en el menú principal.
+# ------------------------------------------------------------------
+_add("menu.tutorial_button", "Cómo jugar", "How to play")
+_add("tutorial.title", "Cómo jugar", "How to play")
+_add("tutorial.page_label", "Página {n} de {total}", "Page {n} of {total}")
+_add("tutorial.hint", "Flechas para cambiar de página · Esc/Volver para salir",
+     "Arrows to change page · Esc/Back to exit")
+_add("tutorial.back_button", "Volver", "Back")
+_add("tutorial.prev_button", "Anterior", "Previous")
+_add("tutorial.next_button", "Siguiente", "Next")
+
+_add("tutorial.page1_title", "Objetivo del juego", "Goal of the game")
+_add("tutorial.page1_body1",
+     "Consigue que el valor de tu mano se acerque a 21 todo lo posible sin pasarte, y supera la mano del crupier.",
+     "Get your hand's total as close to 21 as possible without going over, and beat the dealer's hand.")
+_add("tutorial.page1_body2",
+     "Las cartas numéricas valen su número, J/Q/K valen 10, y el As vale 1 u 11 (lo que más te convenga).",
+     "Number cards are worth their number, J/Q/K are worth 10, and the Ace is worth 1 or 11 (whichever helps you more).")
+_add("tutorial.page1_body3",
+     "Un Blackjack natural (As + carta de valor 10 en tus 2 primeras cartas) gana de inmediato con pago extra, salvo empate con el del crupier.",
+     "A natural blackjack (an Ace plus a 10-value card in your first 2 cards) wins immediately with an extra payout, unless the dealer ties it.")
+
+_add("tutorial.page2_title", "Cómo se juega una ronda", "How a round plays out")
+_add("tutorial.page2_body1", "Apuesta tus fichas antes de que se repartan las cartas.",
+     "Place your chip bet before the cards are dealt.")
+_add("tutorial.page2_body2",
+     "Se reparten 2 cartas a cada jugador y 2 al crupier (una de ellas boca abajo).",
+     "Each player gets 2 cards, and so does the dealer (one of the dealer's cards stays face down).")
+_add("tutorial.page2_body3",
+     "Decides tu jugada; cuando termines, el crupier revela su carta oculta y sigue sus propias reglas fijas.",
+     "You decide your play; once you're done, the dealer reveals the hidden card and follows a fixed set of rules.")
+_add("tutorial.page2_body4", "Al final se comparan las manos y se pagan o se cobran las apuestas.",
+     "Hands are then compared and bets are paid out or collected.")
+
+_add("tutorial.page3_title", "Tus acciones", "Your actions")
+_add("tutorial.page3_hit", "Pedir: recibes una carta más.", "Hit: take one more card.")
+_add("tutorial.page3_stand", "Plantarse: te quedas con tu mano tal cual.", "Stand: keep your hand as it is.")
+_add("tutorial.page3_double",
+     "Doblar: duplicas tu apuesta y recibes exactamente una carta más.",
+     "Double: double your bet and receive exactly one more card.")
+_add("tutorial.page3_split",
+     "Dividir: si tienes un par, lo separas en dos manos independientes, cada una con su propia apuesta.",
+     "Split: if you have a pair, split it into two separate hands, each with its own bet.")
+_add("tutorial.page3_surrender",
+     "Rendirse: recuperas la mitad de tu apuesta y abandonas la mano -- solo como primera decisión.",
+     "Surrender: get back half your bet and give up the hand -- only available as your first decision.")
+_add("tutorial.page3_insurance",
+     "Seguro: si el crupier muestra un As, puedes apostar a que tiene Blackjack -- estadísticamente no conviene.",
+     "Insurance: if the dealer shows an Ace, you can bet that they have Blackjack -- statistically not a good bet.")
+
+_add("tutorial.page4_title", "Apuestas laterales", "Side bets")
+_add("tutorial.page4_body1",
+     "Son apuestas opcionales, aparte de la principal, que se resuelven justo después del reparto inicial.",
+     "These are optional bets, separate from your main wager, resolved right after the initial deal.")
+_add("tutorial.page4_perfect_pairs",
+     "Parejas Perfectas: paga si tus 2 primeras cartas forman un par.",
+     "Perfect Pairs: pays if your first 2 cards form a pair.")
+_add("tutorial.page4_21plus3",
+     "21+3: combina tus 2 cartas con la del crupier como si fueran una mano de póquer de 3 cartas.",
+     "21+3: combines your 2 cards with the dealer's upcard as a 3-card poker hand.")
+_add("tutorial.page4_lucky_ladies",
+     "Lucky Ladies: paga según tus 2 primeras cartas, con premio máximo si forman una pareja de Reinas.",
+     "Lucky Ladies: pays based on your first 2 cards, with the top payout for a pair of Queens.")
+_add("tutorial.page4_royal_match",
+     "Royal Match: paga si tus 2 primeras cartas son del mismo palo (más si son Rey y Reina).",
+     "Royal Match: pays if your first 2 cards share a suit (more if they're the King and Queen).")
+
+_add("tutorial.page5_title", "Consejos rápidos", "Quick tips")
+_add("tutorial.page5_body1",
+     "Pulsa F1 durante la partida para ver sugerencias de estrategia básica mientras decides.",
+     "Press F1 during a hand to see basic-strategy hints while you decide.")
+_add("tutorial.page5_body2",
+     "El Conteo de Cartas (menú principal) te deja practicar el sistema Hi-Lo sin arriesgar fichas.",
+     "Card Counting practice (main menu) lets you train the Hi-Lo system without risking any chips.")
+_add("tutorial.page5_body3",
+     "Puedes añadir oponentes controlados por la IA a tu mesa, que juegan con estrategia básica.",
+     "You can add AI-controlled opponents to your table, playing with basic strategy.")
+_add("tutorial.page5_body4",
+     "Revisa Ajustes para cambiar reglas de la casa, idioma, tema visual y volumen.",
+     "Check Settings to change house rules, language, visual theme and volume.")
+
 
 # ------------------------------------------------------------------
 # Fase 27: francés, portugués (Portugal) y alemán -- textos simples
@@ -819,6 +1035,11 @@ _add("profile_store.duplicate_name", "Ya existe un perfil llamado «{name}».", 
 _STRINGS_FR: dict[str, str] = {
     'animations.achievement_for_player': 'SUCCÈS DE {name}',
     'animations.achievement_unlocked': 'SUCCÈS DÉBLOQUÉ',
+    'backup.back_button': 'Retour',
+    'backup.browse_empty': 'Aucune sauvegarde trouvée dans saves/backups/.',
+    'backup.browse_item_info': '{date} · ${chips} · {hands} mains · {achievements} succès',
+    'backup.browse_title': 'Importer une sauvegarde',
+    'backup.import_name_suffix': '{name} ({n})',
     'challenge.progress_chips': '${chips} / ${target}',
     'challenge.progress_hand': 'Main {hand} / {limit}',
     'challenge.progress_net': 'Net : {net:+.0f}',
@@ -836,6 +1057,15 @@ _STRINGS_FR: dict[str, str] = {
     'challenge_select.start_button': 'Commencer le défi',
     'challenge_select.subtitle': 'Des parties courtes avec un objectif précis -- idéal pour une session rapide',
     'challenge_select.title': 'DÉFIS',
+    'tournament_select.back_button': 'Retour',
+    'tournament_select.detail_bet_range': 'Mise : ${min} - ${max}',
+    'tournament_select.detail_hand_limit': 'Limite de mains : {limit}',
+    'tournament_select.detail_starting_chips': 'Jetons de départ : ${chips}',
+    'tournament_select.hint': 'Flèches pour se déplacer · Entrée/Commencer confirme · Échap/Retour annule',
+    'tournament_select.item_facts': '{limit} mains · ${chips} de départ',
+    'tournament_select.start_button': 'Commencer le tournoi',
+    'tournament_select.subtitle': 'Toute la table joue le même nombre de mains -- celui qui a le plus de jetons à la fin gagne',
+    'tournament_select.title': 'TOURNOIS',
     'chipstack.undo_hint': 'Clic droit -> reprendre le dernier jeton',
     'counter.cold': 'Froid ❄️',
     'counter.hot': 'Chaud 🔥',
@@ -915,6 +1145,7 @@ _STRINGS_FR: dict[str, str] = {
     'hud.category_surrender': 'Abandon',
     'hud.category_win': 'Victoire',
     'hud.challenge_hands_progress': 'Main {played}/{limit}',
+    'hud.tournament_hands_progress': 'Main {played}/{limit}',
     'hud.result_distribution_title': 'Répartition des résultats',
     'hud.stat_best_streak': 'Meilleure série : +{n}',
     'hud.stat_blackjacks': 'Blackjacks : {n}',
@@ -946,6 +1177,7 @@ _STRINGS_FR: dict[str, str] = {
     'leaderboard.title': 'Classement des profils',
     'menu.back_button': 'Retour',
     'menu.challenges_button': 'Défis',
+    'menu.tournament_button': 'Tournoi',
     'menu.custom_hint': 'Appuyez sur Entrée ou JOUER pour définir vos propres règles',
     'menu.custom_option': 'Personnalisé...',
     'menu.dealer_hit_h17': 'Tire (H17)',
@@ -960,6 +1192,7 @@ _STRINGS_FR: dict[str, str] = {
     'menu.field.five_card_charlie': 'Five Card Charlie',
     'menu.field.hit_split_aces': 'Tirer après split des As',
     'menu.field.insurance_allowed': 'Assurance autorisée',
+    'menu.field.lucky_ladies_allowed': 'Mise latérale : Lucky Ladies',
     'menu.field.max_bet': 'Mise maximale',
     'menu.field.max_splits': 'Splits maximum',
     'menu.field.min_bet': 'Mise minimale',
@@ -968,6 +1201,7 @@ _STRINGS_FR: dict[str, str] = {
     'menu.field.penetration': 'Pénétration du sabot',
     'menu.field.perfect_pairs_allowed': 'Mise latérale : Paires Parfaites',
     'menu.field.resplit_aces': 'Re-split des As',
+    'menu.field.royal_match_allowed': 'Mise latérale : Royal Match',
     'menu.field.side_bet_max': 'Limite de mise latérale',
     'menu.field.starting_chips': 'Jetons de départ',
     'menu.field.surrender_rule': 'Abandon (Surrender)',
@@ -988,6 +1222,8 @@ _STRINGS_FR: dict[str, str] = {
     'menu.surrender_late': 'Tardif',
     'menu.surrender_none': 'Non autorisé',
     'menu.yes': 'Oui',
+    'profile.add_bot_button': '+  Ajouter un Bot',
+    'profile.next_bot_hint': 'Prochain bot : {name}',
     'profile.add_player_button': '+  Ajouter un joueur',
     'profile.avatar_label': 'Avatar :',
     'profile.cancel_button': 'Annuler',
@@ -997,15 +1233,20 @@ _STRINGS_FR: dict[str, str] = {
     'profile.create_hint': "Flèches pour choisir l'avatar · Entrée pour créer · Échap pour revenir",
     'profile.create_title': 'Nouveau profil',
     'profile.error_empty_name': 'Saisissez un nom pour le profil.',
+    'profile.export_error': 'Impossible de créer la sauvegarde.',
+    'profile.export_success': "Sauvegarde de « {name} » enregistrée dans saves/backups/.",
+    'profile.import_profile_button': 'Importer une sauvegarde...',
+    'profile.import_success': "Profil « {name} » importé avec succès.",
     'profile.leaderboard_button': 'Classement',
-    'profile.list_hint': "Cliquez sur un profil pour continuer · icône liste : voir l'historique · icône corbeille : supprimer · N : nouveau profil · Classement : comparer les profils",
+    'profile.list_hint': "Cliquez sur un profil pour continuer · icône liste : voir l'historique · icône nuage : exporter une sauvegarde · icône corbeille : supprimer · N : nouveau profil · Classement : comparer les profils",
     'profile.max_players_note': 'Maximum 3 joueurs à la table',
     'profile.name_label': 'Nom :',
     'profile.new_profile_button': '+  Nouveau profil',
     'profile.play_button': 'Jouer',
     'profile.play_solo_button': 'Jouer en solo',
     'profile.seat_number': 'Siège {n}',
-    'profile.seats_hint_add': ' · A pour ajouter un autre joueur',
+    'profile.bot_seat_name': 'Bot',
+    'profile.seats_hint_add': ' · A pour ajouter un autre joueur · B pour ajouter un Bot',
     'profile.seats_hint_play': 'Entrée pour jouer',
     'profile.seats_title': 'Joueurs à la table',
     'profile.subtitle_default': 'Profils locaux — sans mot de passe, chacun avec son propre historique',
@@ -1024,6 +1265,8 @@ _STRINGS_FR: dict[str, str] = {
     'renderer.challenge_lost_title': 'DÉFI ÉCHOUÉ',
     'renderer.challenge_preset_label': 'Défi : {name}',
     'renderer.challenge_won_title': 'DÉFI RÉUSSI !',
+    'renderer.tournament_end_title': 'TOURNOI TERMINÉ',
+    'renderer.tournament_preset_label': 'Tournoi : {name}',
     'renderer.continue_hint': 'Cliquez ou Entrée pour continuer',
     'renderer.deal_button': 'DISTRIBUER',
     'renderer.dealer_blackjack': 'Le croupier a Blackjack',
@@ -1092,6 +1335,12 @@ _STRINGS_FR: dict[str, str] = {
     'replay.tag_surrendered': 'abandonnée',
     'settings.audio_section': 'Audio',
     'settings.card_back_section': 'Dos de carte',
+    'settings.font_scale_large': 'Grande',
+    'settings.font_scale_normal': 'Normale',
+    'settings.font_scale_section': 'Taille du texte',
+    'settings.high_contrast_section': 'Contraste élevé',
+    'settings.off': 'Non',
+    'settings.on': 'Oui',
     'settings.hint': 'Cliquez pour appliquer instantanément · faites glisser les curseurs de volume · Échap/Retour pour quitter',
     'settings.language_section': 'Langue',
     'settings.music_label': 'Musique',
@@ -1128,10 +1377,51 @@ _STRINGS_FR: dict[str, str] = {
     'csv.label_lowest_chips': 'Jetons minimum',
     'csv.label_hands_split': 'Mains séparées',
     'csv.label_current_chips': 'Jetons actuels',
+
+    # Fase 36: tutoriel / comment jouer
+    'menu.tutorial_button': 'Comment jouer',
+    'tutorial.title': 'Comment jouer',
+    'tutorial.page_label': 'Page {n} sur {total}',
+    'tutorial.hint': 'Flèches pour changer de page · Échap/Retour pour sortir',
+    'tutorial.back_button': 'Retour',
+    'tutorial.prev_button': 'Précédent',
+    'tutorial.next_button': 'Suivant',
+    'tutorial.page1_title': 'Objectif du jeu',
+    'tutorial.page1_body1': 'Rapprochez le total de votre main de 21 sans le dépasser, et battez la main du croupier.',
+    'tutorial.page1_body2': "Les cartes numériques valent leur chiffre, J/Q/K valent 10, et l'As vaut 1 ou 11 (selon ce qui vous arrange).",
+    'tutorial.page1_body3': "Un Blackjack naturel (As + carte de 10 points sur vos 2 premières cartes) gagne immédiatement avec un paiement bonus, sauf égalité avec celui du croupier.",
+    'tutorial.page2_title': "Déroulement d'une manche",
+    'tutorial.page2_body1': 'Misez vos jetons avant la distribution des cartes.',
+    'tutorial.page2_body2': 'Chaque joueur reçoit 2 cartes, ainsi que le croupier (une de ses cartes reste face cachée).',
+    'tutorial.page2_body3': 'Vous décidez de votre jeu ; une fois terminé, le croupier révèle sa carte cachée et suit ses propres règles fixes.',
+    'tutorial.page2_body4': 'Les mains sont ensuite comparées et les mises sont payées ou encaissées.',
+    'tutorial.page3_title': 'Vos actions',
+    'tutorial.page3_hit': 'Tirer : vous recevez une carte supplémentaire.',
+    'tutorial.page3_stand': 'Rester : vous gardez votre main telle quelle.',
+    'tutorial.page3_double': 'Doubler : vous doublez votre mise et recevez exactement une carte de plus.',
+    'tutorial.page3_split': 'Séparer : si vous avez une paire, divisez-la en deux mains indépendantes, chacune avec sa propre mise.',
+    'tutorial.page3_surrender': 'Abandonner : vous récupérez la moitié de votre mise et abandonnez la main -- uniquement comme première décision.',
+    'tutorial.page3_insurance': "Assurance : si le croupier montre un As, vous pouvez parier qu'il a un Blackjack -- statistiquement déconseillé.",
+    'tutorial.page4_title': 'Mises latérales',
+    'tutorial.page4_body1': 'Ce sont des mises optionnelles, séparées de la mise principale, réglées juste après la distribution initiale.',
+    'tutorial.page4_perfect_pairs': 'Perfect Pairs : paie si vos 2 premières cartes forment une paire.',
+    'tutorial.page4_21plus3': '21+3 : combine vos 2 cartes avec celle du croupier comme une main de poker à 3 cartes.',
+    'tutorial.page4_lucky_ladies': 'Lucky Ladies : paie selon vos 2 premières cartes, avec le gain maximal pour une paire de Dames.',
+    'tutorial.page4_royal_match': 'Royal Match : paie si vos 2 premières cartes sont de la même couleur (plus pour Roi et Dame).',
+    'tutorial.page5_title': 'Astuces rapides',
+    'tutorial.page5_body1': 'Appuyez sur F1 pendant une main pour voir des suggestions de stratégie de base en décidant.',
+    'tutorial.page5_body2': "L'entraînement au comptage de cartes (menu principal) permet de pratiquer le système Hi-Lo sans risquer de jetons.",
+    'tutorial.page5_body3': "Vous pouvez ajouter des adversaires contrôlés par l'IA à votre table, jouant avec la stratégie de base.",
+    'tutorial.page5_body4': 'Consultez les Réglages pour changer les règles de la maison, la langue, le thème visuel et le volume.',
 }
 _STRINGS_PT: dict[str, str] = {
     'animations.achievement_for_player': 'CONQUISTA DE {name}',
     'animations.achievement_unlocked': 'CONQUISTA DESBLOQUEADA',
+    'backup.back_button': 'Voltar',
+    'backup.browse_empty': 'Não há nenhuma cópia de segurança em saves/backups/.',
+    'backup.browse_item_info': '{date} · ${chips} · {hands} mãos · {achievements} conquistas',
+    'backup.browse_title': 'Importar cópia de segurança',
+    'backup.import_name_suffix': '{name} ({n})',
     'challenge.progress_chips': '${chips} / ${target}',
     'challenge.progress_hand': 'Mão {hand} / {limit}',
     'challenge.progress_net': 'Líquido: {net:+.0f}',
@@ -1149,6 +1439,15 @@ _STRINGS_PT: dict[str, str] = {
     'challenge_select.start_button': 'Começar Desafio',
     'challenge_select.subtitle': 'Partidas curtas com um objetivo concreto -- ideal para uma sessão rápida',
     'challenge_select.title': 'DESAFIOS',
+    'tournament_select.back_button': 'Voltar',
+    'tournament_select.detail_bet_range': 'Aposta: ${min} - ${max}',
+    'tournament_select.detail_hand_limit': 'Limite de mãos: {limit}',
+    'tournament_select.detail_starting_chips': 'Fichas iniciais: ${chips}',
+    'tournament_select.hint': 'Setas para mover · Enter/Começar confirma · Esc/Voltar cancela',
+    'tournament_select.item_facts': '{limit} mãos · ${chips} iniciais',
+    'tournament_select.start_button': 'Começar Torneio',
+    'tournament_select.subtitle': 'Toda a mesa joga o mesmo número de mãos -- quem tiver mais fichas no final ganha',
+    'tournament_select.title': 'TORNEIOS',
     'chipstack.undo_hint': 'Clique direito -> devolver última ficha',
     'counter.cold': 'Frio ❄️',
     'counter.hot': 'Quente 🔥',
@@ -1228,6 +1527,7 @@ _STRINGS_PT: dict[str, str] = {
     'hud.category_surrender': 'Rendição',
     'hud.category_win': 'Vitória',
     'hud.challenge_hands_progress': 'Mão {played}/{limit}',
+    'hud.tournament_hands_progress': 'Mão {played}/{limit}',
     'hud.result_distribution_title': 'Distribuição de resultados',
     'hud.stat_best_streak': 'Melhor sequência: +{n}',
     'hud.stat_blackjacks': 'Blackjacks: {n}',
@@ -1259,6 +1559,7 @@ _STRINGS_PT: dict[str, str] = {
     'leaderboard.title': 'Classificação de perfis',
     'menu.back_button': 'Voltar',
     'menu.challenges_button': 'Desafios',
+    'menu.tournament_button': 'Torneio',
     'menu.custom_hint': 'Prime Enter ou JOGAR para ajustar as tuas próprias regras',
     'menu.custom_option': 'Personalizado...',
     'menu.dealer_hit_h17': 'Pede carta (H17)',
@@ -1273,6 +1574,7 @@ _STRINGS_PT: dict[str, str] = {
     'menu.field.five_card_charlie': 'Five Card Charlie',
     'menu.field.hit_split_aces': 'Pedir carta após dividir Ases',
     'menu.field.insurance_allowed': 'Seguro permitido',
+    'menu.field.lucky_ladies_allowed': 'Aposta lateral: Lucky Ladies',
     'menu.field.max_bet': 'Aposta máxima',
     'menu.field.max_splits': 'Splits máximos',
     'menu.field.min_bet': 'Aposta mínima',
@@ -1281,6 +1583,7 @@ _STRINGS_PT: dict[str, str] = {
     'menu.field.penetration': 'Penetração do sapato',
     'menu.field.perfect_pairs_allowed': 'Aposta lateral: Pares Perfeitos',
     'menu.field.resplit_aces': 'Voltar a dividir Ases',
+    'menu.field.royal_match_allowed': 'Aposta lateral: Royal Match',
     'menu.field.side_bet_max': 'Limite de aposta lateral',
     'menu.field.starting_chips': 'Fichas iniciais',
     'menu.field.surrender_rule': 'Render-se (Surrender)',
@@ -1301,6 +1604,8 @@ _STRINGS_PT: dict[str, str] = {
     'menu.surrender_late': 'Tardio',
     'menu.surrender_none': 'Não permitido',
     'menu.yes': 'Sim',
+    'profile.add_bot_button': '+  Adicionar Bot',
+    'profile.next_bot_hint': 'Próximo bot: {name}',
     'profile.add_player_button': '+  Adicionar jogador',
     'profile.avatar_label': 'Avatar:',
     'profile.cancel_button': 'Cancelar',
@@ -1310,15 +1615,20 @@ _STRINGS_PT: dict[str, str] = {
     'profile.create_hint': 'Setas para escolher avatar · Enter para criar · Esc para voltar',
     'profile.create_title': 'Novo perfil',
     'profile.error_empty_name': 'Escreve um nome para o perfil.',
+    'profile.export_error': 'Não foi possível criar a cópia de segurança.',
+    'profile.export_success': "Cópia de segurança de '{name}' guardada em saves/backups/.",
+    'profile.import_profile_button': 'Importar cópia de segurança...',
+    'profile.import_success': "Perfil '{name}' importado com sucesso.",
     'profile.leaderboard_button': 'Classificação',
-    'profile.list_hint': 'Clica num perfil para continuar · lista: ver histórico · lixo: eliminar · N: novo perfil · Classificação: comparar perfis',
+    'profile.list_hint': 'Clica num perfil para continuar · lista: ver histórico · nuvem: exportar cópia · lixo: eliminar · N: novo perfil · Classificação: comparar perfis',
     'profile.max_players_note': 'Máximo de 3 jogadores na mesa',
     'profile.name_label': 'Nome:',
     'profile.new_profile_button': '+  Novo perfil',
     'profile.play_button': 'Jogar',
     'profile.play_solo_button': 'Jogar sozinho',
     'profile.seat_number': 'Lugar {n}',
-    'profile.seats_hint_add': ' · A para adicionar outro jogador',
+    'profile.bot_seat_name': 'Bot',
+    'profile.seats_hint_add': ' · A para adicionar outro jogador · B para adicionar um Bot',
     'profile.seats_hint_play': 'Enter para jogar',
     'profile.seats_title': 'Jogadores na mesa',
     'profile.subtitle_default': 'Perfis locais — sem palavra-passe, cada um com o seu próprio histórico',
@@ -1337,6 +1647,8 @@ _STRINGS_PT: dict[str, str] = {
     'renderer.challenge_lost_title': 'DESAFIO FALHADO',
     'renderer.challenge_preset_label': 'Desafio: {name}',
     'renderer.challenge_won_title': 'DESAFIO CONCLUÍDO!',
+    'renderer.tournament_end_title': 'TORNEIO TERMINADO',
+    'renderer.tournament_preset_label': 'Torneio: {name}',
     'renderer.continue_hint': 'Clica ou Enter para continuar',
     'renderer.deal_button': 'DEAL',
     'renderer.dealer_blackjack': 'O crupiê tem Blackjack',
@@ -1405,6 +1717,12 @@ _STRINGS_PT: dict[str, str] = {
     'replay.tag_surrendered': 'rendida',
     'settings.audio_section': 'Áudio',
     'settings.card_back_section': 'Verso das cartas',
+    'settings.font_scale_large': 'Grande',
+    'settings.font_scale_normal': 'Normal',
+    'settings.font_scale_section': 'Tamanho da letra',
+    'settings.high_contrast_section': 'Alto contraste',
+    'settings.off': 'Não',
+    'settings.on': 'Sim',
     'settings.hint': 'Clica para aplicar de imediato · arrasta os cursores de volume · Esc/Voltar para sair',
     'settings.language_section': 'Idioma',
     'settings.music_label': 'Música',
@@ -1441,10 +1759,51 @@ _STRINGS_PT: dict[str, str] = {
     'csv.label_lowest_chips': 'Fichas mínimas',
     'csv.label_hands_split': 'Mãos divididas',
     'csv.label_current_chips': 'Fichas atuais',
+
+    # Fase 36: tutorial / como jogar
+    'menu.tutorial_button': 'Como jogar',
+    'tutorial.title': 'Como jogar',
+    'tutorial.page_label': 'Página {n} de {total}',
+    'tutorial.hint': 'Setas para mudar de página · Esc/Voltar para sair',
+    'tutorial.back_button': 'Voltar',
+    'tutorial.prev_button': 'Anterior',
+    'tutorial.next_button': 'Seguinte',
+    'tutorial.page1_title': 'Objetivo do jogo',
+    'tutorial.page1_body1': 'Aproxima o valor da tua mão de 21 o máximo possível sem passar, e vence a mão do crupiê.',
+    'tutorial.page1_body2': 'As cartas numéricas valem o seu número, J/Q/K valem 10, e o Ás vale 1 ou 11 (o que for melhor para ti).',
+    'tutorial.page1_body3': 'Um Blackjack natural (Ás + carta de valor 10 nas primeiras 2 cartas) ganha de imediato com um pagamento extra, salvo empate com o do crupiê.',
+    'tutorial.page2_title': 'Como se joga uma ronda',
+    'tutorial.page2_body1': 'Faz a tua aposta em fichas antes de as cartas serem distribuídas.',
+    'tutorial.page2_body2': 'São distribuídas 2 cartas a cada jogador e 2 ao crupiê (uma delas fica voltada para baixo).',
+    'tutorial.page2_body3': 'Decides a tua jogada; quando terminares, o crupiê revela a carta escondida e segue as suas próprias regras fixas.',
+    'tutorial.page2_body4': 'No final comparam-se as mãos e as apostas são pagas ou recolhidas.',
+    'tutorial.page3_title': 'As tuas ações',
+    'tutorial.page3_hit': 'Pedir: recebes mais uma carta.',
+    'tutorial.page3_stand': 'Plantar: ficas com a tua mão como está.',
+    'tutorial.page3_double': 'Dobrar: duplicas a tua aposta e recebes exatamente mais uma carta.',
+    'tutorial.page3_split': 'Dividir: se tiveres um par, divide-o em duas mãos independentes, cada uma com a sua própria aposta.',
+    'tutorial.page3_surrender': 'Desistir: recuperas metade da tua aposta e abandonas a mão -- só como primeira decisão.',
+    'tutorial.page3_insurance': 'Seguro: se o crupiê mostrar um Ás, podes apostar que tem Blackjack -- estatisticamente não compensa.',
+    'tutorial.page4_title': 'Apostas laterais',
+    'tutorial.page4_body1': 'São apostas opcionais, além da principal, resolvidas logo após a distribuição inicial.',
+    'tutorial.page4_perfect_pairs': 'Perfect Pairs: paga se as tuas 2 primeiras cartas formarem um par.',
+    'tutorial.page4_21plus3': '21+3: combina as tuas 2 cartas com a do crupiê como se fossem uma mão de póquer de 3 cartas.',
+    'tutorial.page4_lucky_ladies': 'Lucky Ladies: paga segundo as tuas 2 primeiras cartas, com o prémio máximo para um par de Damas.',
+    'tutorial.page4_royal_match': 'Royal Match: paga se as tuas 2 primeiras cartas forem do mesmo naipe (mais se forem Rei e Dama).',
+    'tutorial.page5_title': 'Dicas rápidas',
+    'tutorial.page5_body1': 'Pressiona F1 durante uma mão para ver sugestões de estratégia básica enquanto decides.',
+    'tutorial.page5_body2': 'O treino de Contagem de Cartas (menu principal) permite praticar o sistema Hi-Lo sem arriscar fichas.',
+    'tutorial.page5_body3': 'Podes adicionar adversários controlados por IA à tua mesa, que jogam com estratégia básica.',
+    'tutorial.page5_body4': 'Consulta as Definições para alterar as regras da casa, idioma, tema visual e volume.',
 }
 _STRINGS_DE: dict[str, str] = {
     'animations.achievement_for_player': 'ERFOLG VON {name}',
     'animations.achievement_unlocked': 'ERFOLG FREIGESCHALTET',
+    'backup.back_button': 'Zurück',
+    'backup.browse_empty': 'Keine Sicherung in saves/backups/ gefunden.',
+    'backup.browse_item_info': '{date} · ${chips} · {hands} Hände · {achievements} Erfolge',
+    'backup.browse_title': 'Sicherung importieren',
+    'backup.import_name_suffix': '{name} ({n})',
     'challenge.progress_chips': '${chips} / ${target}',
     'challenge.progress_hand': 'Hand {hand} / {limit}',
     'challenge.progress_net': 'Netto: {net:+.0f}',
@@ -1462,6 +1821,15 @@ _STRINGS_DE: dict[str, str] = {
     'challenge_select.start_button': 'Herausforderung starten',
     'challenge_select.subtitle': 'Kurze Partien mit einem klaren Ziel -- ideal für eine schnelle Runde',
     'challenge_select.title': 'HERAUSFORDERUNGEN',
+    'tournament_select.back_button': 'Zurück',
+    'tournament_select.detail_bet_range': 'Einsatz: ${min} - ${max}',
+    'tournament_select.detail_hand_limit': 'Handlimit: {limit}',
+    'tournament_select.detail_starting_chips': 'Startchips: ${chips}',
+    'tournament_select.hint': 'Pfeiltasten zum Navigieren · Enter/Starten bestätigt · Esc/Zurück bricht ab',
+    'tournament_select.item_facts': '{limit} Hände · ${chips} Startguthaben',
+    'tournament_select.start_button': 'Turnier starten',
+    'tournament_select.subtitle': 'Der ganze Tisch spielt dieselbe Anzahl Hände -- wer am Ende die meisten Chips hat, gewinnt',
+    'tournament_select.title': 'TURNIERE',
     'chipstack.undo_hint': 'Rechtsklick -> letzten Chip zurücknehmen',
     'counter.cold': 'Kalt ❄️',
     'counter.hot': 'Heiß 🔥',
@@ -1541,6 +1909,7 @@ _STRINGS_DE: dict[str, str] = {
     'hud.category_surrender': 'Aufgegeben',
     'hud.category_win': 'Sieg',
     'hud.challenge_hands_progress': 'Hand {played}/{limit}',
+    'hud.tournament_hands_progress': 'Hand {played}/{limit}',
     'hud.result_distribution_title': 'Ergebnisverteilung',
     'hud.stat_best_streak': 'Beste Serie: +{n}',
     'hud.stat_blackjacks': 'Blackjacks: {n}',
@@ -1572,6 +1941,7 @@ _STRINGS_DE: dict[str, str] = {
     'leaderboard.title': 'Profil-Bestenliste',
     'menu.back_button': 'Zurück',
     'menu.challenges_button': 'Herausforderungen',
+    'menu.tournament_button': 'Turnier',
     'menu.custom_hint': 'Drücke Enter oder SPIELEN, um deine eigenen Regeln festzulegen',
     'menu.custom_option': 'Benutzerdefiniert...',
     'menu.dealer_hit_h17': 'Zieht (H17)',
@@ -1586,6 +1956,7 @@ _STRINGS_DE: dict[str, str] = {
     'menu.field.five_card_charlie': 'Five Card Charlie',
     'menu.field.hit_split_aces': 'Karte ziehen nach Ass-Split',
     'menu.field.insurance_allowed': 'Versicherung erlaubt',
+    'menu.field.lucky_ladies_allowed': 'Nebenwette: Lucky Ladies',
     'menu.field.max_bet': 'Höchsteinsatz',
     'menu.field.max_splits': 'Max. Splits',
     'menu.field.min_bet': 'Mindesteinsatz',
@@ -1594,6 +1965,7 @@ _STRINGS_DE: dict[str, str] = {
     'menu.field.penetration': 'Schuh-Penetration',
     'menu.field.perfect_pairs_allowed': 'Nebenwette: Perfect Pairs',
     'menu.field.resplit_aces': 'Asse erneut splitten',
+    'menu.field.royal_match_allowed': 'Nebenwette: Royal Match',
     'menu.field.side_bet_max': 'Limit für Nebenwetten',
     'menu.field.starting_chips': 'Startchips',
     'menu.field.surrender_rule': 'Aufgeben (Surrender)',
@@ -1614,6 +1986,8 @@ _STRINGS_DE: dict[str, str] = {
     'menu.surrender_late': 'Spät',
     'menu.surrender_none': 'Nicht erlaubt',
     'menu.yes': 'Ja',
+    'profile.add_bot_button': '+  Bot hinzufügen',
+    'profile.next_bot_hint': 'Nächster Bot: {name}',
     'profile.add_player_button': '+  Spieler hinzufügen',
     'profile.avatar_label': 'Avatar:',
     'profile.cancel_button': 'Abbrechen',
@@ -1623,15 +1997,20 @@ _STRINGS_DE: dict[str, str] = {
     'profile.create_hint': 'Pfeiltasten zur Avatar-Auswahl · Enter zum Erstellen · Esc zum Zurückgehen',
     'profile.create_title': 'Neues Profil',
     'profile.error_empty_name': 'Gib einen Namen für das Profil ein.',
+    'profile.export_error': 'Die Sicherung konnte nicht erstellt werden.',
+    'profile.export_success': "Sicherung von '{name}' in saves/backups/ gespeichert.",
+    'profile.import_profile_button': 'Sicherung importieren...',
+    'profile.import_success': "Profil '{name}' erfolgreich importiert.",
     'profile.leaderboard_button': 'Bestenliste',
-    'profile.list_hint': 'Klick auf ein Profil, um fortzufahren · Listensymbol: Verlauf ansehen · Papierkorb: löschen · N: neues Profil · Bestenliste: Profile vergleichen',
+    'profile.list_hint': 'Klick auf ein Profil, um fortzufahren · Listensymbol: Verlauf ansehen · Cloud-Symbol: Sicherung exportieren · Papierkorb: löschen · N: neues Profil · Bestenliste: Profile vergleichen',
     'profile.max_players_note': 'Maximal 3 Spieler am Tisch',
     'profile.name_label': 'Name:',
     'profile.new_profile_button': '+  Neues Profil',
     'profile.play_button': 'Spielen',
     'profile.play_solo_button': 'Allein spielen',
     'profile.seat_number': 'Platz {n}',
-    'profile.seats_hint_add': ' · A, um einen weiteren Spieler hinzuzufügen',
+    'profile.bot_seat_name': 'Bot',
+    'profile.seats_hint_add': ' · A, um einen weiteren Spieler hinzuzufügen · B, um einen Bot hinzuzufügen',
     'profile.seats_hint_play': 'Enter zum Spielen',
     'profile.seats_title': 'Spieler am Tisch',
     'profile.subtitle_default': 'Lokale Profile — kein Passwort, jedes mit eigener Historie',
@@ -1650,6 +2029,8 @@ _STRINGS_DE: dict[str, str] = {
     'renderer.challenge_lost_title': 'HERAUSFORDERUNG GESCHEITERT',
     'renderer.challenge_preset_label': 'Herausforderung: {name}',
     'renderer.challenge_won_title': 'HERAUSFORDERUNG GESCHAFFT!',
+    'renderer.tournament_end_title': 'TURNIER BEENDET',
+    'renderer.tournament_preset_label': 'Turnier: {name}',
     'renderer.continue_hint': 'Klick oder Enter zum Fortfahren',
     'renderer.deal_button': 'GEBEN',
     'renderer.dealer_blackjack': 'Der Dealer hat Blackjack',
@@ -1718,6 +2099,12 @@ _STRINGS_DE: dict[str, str] = {
     'replay.tag_surrendered': 'aufgegeben',
     'settings.audio_section': 'Audio',
     'settings.card_back_section': 'Kartenrückseite',
+    'settings.font_scale_large': 'Groß',
+    'settings.font_scale_normal': 'Normal',
+    'settings.font_scale_section': 'Schriftgröße',
+    'settings.high_contrast_section': 'Hoher Kontrast',
+    'settings.off': 'Nein',
+    'settings.on': 'Ja',
     'settings.hint': 'Klick zum sofortigen Anwenden · zieh die Lautstärkeregler · Esc/Zurück zum Verlassen',
     'settings.language_section': 'Sprache',
     'settings.music_label': 'Musik',
@@ -1754,6 +2141,42 @@ _STRINGS_DE: dict[str, str] = {
     'csv.label_lowest_chips': 'Chip-Tiefststand',
     'csv.label_hands_split': 'Geteilte Hände',
     'csv.label_current_chips': 'Aktuelle Chips',
+
+    # Fase 36: Spielanleitung / Tutorial
+    'menu.tutorial_button': 'Spielanleitung',
+    'tutorial.title': 'Spielanleitung',
+    'tutorial.page_label': 'Seite {n} von {total}',
+    'tutorial.hint': 'Pfeiltasten zum Seitenwechsel · Esc/Zurück zum Verlassen',
+    'tutorial.back_button': 'Zurück',
+    'tutorial.prev_button': 'Vorherige',
+    'tutorial.next_button': 'Weiter',
+    'tutorial.page1_title': 'Spielziel',
+    'tutorial.page1_body1': 'Bringe den Wert deiner Hand so nah wie möglich an 21, ohne zu überschreiten, und schlage die Hand des Dealers.',
+    'tutorial.page1_body2': 'Zahlenkarten zählen ihren Zahlenwert, J/Q/K zählen 10, und das Ass zählt 1 oder 11 (je nachdem, was dir mehr nützt).',
+    'tutorial.page1_body3': 'Ein natürlicher Blackjack (Ass + Karte mit Wert 10 in deinen ersten 2 Karten) gewinnt sofort mit einer Extraauszahlung, außer bei einem Unentschieden mit dem Dealer.',
+    'tutorial.page2_title': 'Wie eine Runde abläuft',
+    'tutorial.page2_body1': 'Setze deine Chips, bevor die Karten ausgeteilt werden.',
+    'tutorial.page2_body2': 'Jeder Spieler bekommt 2 Karten, ebenso der Dealer (eine seiner Karten bleibt verdeckt).',
+    'tutorial.page2_body3': 'Du entscheidest deinen Zug; wenn du fertig bist, deckt der Dealer seine verdeckte Karte auf und folgt festen eigenen Regeln.',
+    'tutorial.page2_body4': 'Am Ende werden die Hände verglichen und die Einsätze ausgezahlt oder eingezogen.',
+    'tutorial.page3_title': 'Deine Aktionen',
+    'tutorial.page3_hit': 'Ziehen: Du bekommst eine weitere Karte.',
+    'tutorial.page3_stand': 'Halten: Du bleibst bei deiner Hand, so wie sie ist.',
+    'tutorial.page3_double': 'Verdoppeln: Du verdoppelst deinen Einsatz und bekommst genau eine weitere Karte.',
+    'tutorial.page3_split': 'Teilen: Hast du ein Paar, teilst du es in zwei unabhängige Hände, jede mit eigenem Einsatz.',
+    'tutorial.page3_surrender': 'Aufgeben: Du bekommst die Hälfte deines Einsatzes zurück und gibst die Hand auf -- nur als erste Entscheidung möglich.',
+    'tutorial.page3_insurance': 'Versicherung: Zeigt der Dealer ein Ass, kannst du darauf wetten, dass er Blackjack hat -- statistisch keine gute Wette.',
+    'tutorial.page4_title': 'Nebenwetten',
+    'tutorial.page4_body1': 'Das sind optionale Wetten, getrennt vom Haupteinsatz, die gleich nach der ersten Austeilung abgerechnet werden.',
+    'tutorial.page4_perfect_pairs': 'Perfect Pairs: zahlt aus, wenn deine ersten 2 Karten ein Paar bilden.',
+    'tutorial.page4_21plus3': '21+3: kombiniert deine 2 Karten mit der des Dealers wie eine 3-Karten-Pokerhand.',
+    'tutorial.page4_lucky_ladies': 'Lucky Ladies: zahlt je nach deinen ersten 2 Karten, mit der Höchstauszahlung für ein Damenpaar.',
+    'tutorial.page4_royal_match': 'Royal Match: zahlt aus, wenn deine ersten 2 Karten die gleiche Farbe haben (mehr bei König und Dame).',
+    'tutorial.page5_title': 'Schnelle Tipps',
+    'tutorial.page5_body1': 'Drücke F1 während einer Hand, um Basisstrategie-Hinweise bei deiner Entscheidung zu sehen.',
+    'tutorial.page5_body2': 'Das Kartenzähl-Training (Hauptmenü) lässt dich das Hi-Lo-System ohne Risiko üben.',
+    'tutorial.page5_body3': 'Du kannst KI-gesteuerte Gegner an deinen Tisch holen, die mit Basisstrategie spielen.',
+    'tutorial.page5_body4': 'Schau in den Einstellungen nach, um Hausregeln, Sprache, visuelles Thema und Lautstärke zu ändern.',
 }
 STRINGS["fr"].update(_STRINGS_FR)
 STRINGS["pt"].update(_STRINGS_PT)

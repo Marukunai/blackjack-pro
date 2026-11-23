@@ -96,6 +96,62 @@ def evaluate_21_plus_3(hand: "Hand", dealer_upcard: Optional["Card"]) -> tuple[s
 
 
 # ------------------------------------------------------------------
+# Lucky Ladies (Fase 31) — evalúa solo las 2 cartas del jugador. A
+# diferencia del valor normal de la mano, aquí el As vale 1 (no 11):
+# así un As+9 NO cuenta como "20", igual que en las mesas reales.
+# ------------------------------------------------------------------
+LUCKY_LADIES_PAYOUTS: dict[str, float] = {
+    "Damas de corazones":    100.0,  # pareja de Reinas de Corazones (QH+QH)
+    "Veinte del mismo palo":  15.0,  # 2 cartas del mismo palo que suman 20
+    "Veinte cualquiera":       4.0,  # cualquier par de cartas que suma 20
+}
+
+_LUCKY_LADIES_VALUE: dict[str, int] = {
+    "A": 1, "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7,
+    "8": 8, "9": 9, "10": 10, "J": 10, "Q": 10, "K": 10,
+}
+
+
+def evaluate_lucky_ladies(hand: "Hand") -> tuple[str, float]:
+    """Devuelve (etiqueta, multiplicador 'a 1') para Lucky Ladies."""
+    if len(hand.cards) < 2:
+        return ("Sin premio", 0.0)
+    c1, c2 = hand.cards[0], hand.cards[1]
+
+    if c1.rank == "Q" and c2.rank == "Q" and c1.suit == "♥" and c2.suit == "♥":
+        return ("Damas de corazones", LUCKY_LADIES_PAYOUTS["Damas de corazones"])
+
+    total = _LUCKY_LADIES_VALUE[c1.rank] + _LUCKY_LADIES_VALUE[c2.rank]
+    if total == 20:
+        if c1.suit == c2.suit:
+            return ("Veinte del mismo palo", LUCKY_LADIES_PAYOUTS["Veinte del mismo palo"])
+        return ("Veinte cualquiera", LUCKY_LADIES_PAYOUTS["Veinte cualquiera"])
+    return ("Sin premio", 0.0)
+
+
+# ------------------------------------------------------------------
+# Royal Match (Fase 31) — evalúa solo las 2 cartas del jugador: premia
+# que sean del mismo palo, y más si son concretamente Rey+Reina.
+# ------------------------------------------------------------------
+ROYAL_MATCH_PAYOUTS: dict[str, float] = {
+    "Pareja real":           25.0,  # K + Q del mismo palo (el "Royal Match")
+    "Pareja del mismo palo":  5.0,  # cualquier otro par de cartas del mismo palo
+}
+
+
+def evaluate_royal_match(hand: "Hand") -> tuple[str, float]:
+    """Devuelve (etiqueta, multiplicador 'a 1') para Royal Match."""
+    if len(hand.cards) < 2:
+        return ("Sin premio", 0.0)
+    c1, c2 = hand.cards[0], hand.cards[1]
+    if c1.suit != c2.suit:
+        return ("Sin premio", 0.0)
+    if {c1.rank, c2.rank} == {"K", "Q"}:
+        return ("Pareja real", ROYAL_MATCH_PAYOUTS["Pareja real"])
+    return ("Pareja del mismo palo", ROYAL_MATCH_PAYOUTS["Pareja del mismo palo"])
+
+
+# ------------------------------------------------------------------
 # Resultado combinado, usado por GameEngine para emitir el evento y por
 # la UI para mostrar el resultado.
 # ------------------------------------------------------------------

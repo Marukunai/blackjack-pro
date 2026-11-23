@@ -61,7 +61,7 @@ class FloatingMessage:
         self.x, self.y = float(x), float(y)
         self.color = color
         self._life = self.LIFE
-        self._font = pygame.font.SysFont(None, 30, bold=True)
+        self._font = pygame.font.SysFont(None, cfg.scaled_font_size(30), bold=True)
 
     def update(self) -> bool:
         self._life -= 1
@@ -102,10 +102,10 @@ class HUD:
     def _ensure_fonts(self) -> None:
         if self._font_hint:
             return
-        self._font_hint  = pygame.font.SysFont(None, 20, bold=True)
-        self._font_small = pygame.font.SysFont(None, 17)
-        self._font_big   = pygame.font.SysFont(None, 56, bold=True)
-        self._font_stats = pygame.font.SysFont(None, 19)
+        self._font_hint  = pygame.font.SysFont(None, cfg.scaled_font_size(20), bold=True)
+        self._font_small = pygame.font.SysFont(None, cfg.scaled_font_size(17))
+        self._font_big   = pygame.font.SysFont(None, cfg.scaled_font_size(56), bold=True)
+        self._font_stats = pygame.font.SysFont(None, cfg.scaled_font_size(19))
 
     # ------------------------------------------------------------------
     # API pública
@@ -150,7 +150,7 @@ class HUD:
              counter: Optional[HiLoCounter] = None,
              unlocked_achievements: Optional[set] = None,
              training_stats: Optional[tuple] = None,
-             challenge=None) -> None:
+             challenge=None, tournament=None) -> None:
         self._ensure_fonts()
 
         # Banner de Desafío activo (Fase 25) -- arriba-centro, igual que
@@ -158,6 +158,13 @@ class HUD:
         # coincide: los desafíos son siempre en solitario).
         if challenge is not None and engine is not None:
             self._draw_challenge_banner(surf, challenge, engine)
+
+        # Banner de Torneo activo (Fase 39) -- a diferencia del de
+        # Desafío, SÍ puede coincidir con la tira de asientos
+        # multijugador (un Torneo casi siempre lo es), así que se dibuja
+        # más abajo cuando hay más de un asiento para no solaparla.
+        if tournament is not None and engine is not None:
+            self._draw_tournament_banner(surf, tournament, engine)
 
         # Mensajes flotantes
         for m in self._messages:
@@ -251,6 +258,46 @@ class HUD:
         if fill_w > 0:
             pygame.draw.rect(surf, challenge.color, (bar_x, bar_y, fill_w, bar_h), border_radius=4)
         pygame.draw.rect(surf, (120, 120, 120), (bar_x, bar_y, bar_w, bar_h), 1, border_radius=4)
+
+    def _draw_tournament_banner(self, surf: pygame.Surface, tournament, engine) -> None:
+        """Banner fijo arriba-centro con el progreso del Torneo activo:
+        nombre y "Mano X/Y" -- mismo patrón que _draw_challenge_banner,
+        pero sin barra de objetivo (un Torneo no tiene meta intermedia,
+        solo el límite de manos) y más compacto, porque en un Torneo
+        multijugador tiene que convivir con la tira de asientos justo
+        encima suyo."""
+        stats = engine.player.stats
+        box_w, box_h = 300, 34
+        x = self.sw // 2 - box_w // 2
+        # La tira de asientos (ui/renderer.py::_draw_seat_strip) ocupa
+        # y=8..54 cuando hay más de un asiento -- este banner se coloca
+        # justo debajo para no solaparla; en solitario no hay tira, así
+        # que sube a la misma posición que usaría un Desafío.
+        y = 60 if len(engine.players) > 1 else 8
+
+        box = pygame.Surface((box_w, box_h), pygame.SRCALPHA)
+        pygame.draw.rect(box, (0, 0, 0, 150), box.get_rect(), border_radius=10)
+        pygame.draw.rect(box, (*tournament.color, 220), box.get_rect(), 2, border_radius=10)
+        surf.blit(box, (x, y))
+
+        icon_cx, icon_cy = x + 20, y + box_h // 2
+        icons.draw_suit(surf, tournament.icon, icon_cx, icon_cy, 14, tournament.color)
+
+        tournament_name, _ = i18n.tournament_text(tournament)
+        name_s = self._font_small.render(tournament_name, True, tournament.color)
+        surf.blit(name_s, (x + 36, y + 5))
+
+        hands_s = self._font_small.render(
+            i18n.t("hud.tournament_hands_progress", played=stats.hands_played, limit=tournament.hand_limit),
+            True, (200, 200, 200))
+        surf.blit(hands_s, (x + box_w - hands_s.get_width() - 12, y + 5))
+
+        bar_x, bar_y, bar_w, bar_h = x + 36, y + box_h - 9, box_w - 48, 5
+        pygame.draw.rect(surf, (40, 40, 40), (bar_x, bar_y, bar_w, bar_h), border_radius=3)
+        frac = min(1.0, stats.hands_played / tournament.hand_limit) if tournament.hand_limit else 0.0
+        fill_w = int(bar_w * frac)
+        if fill_w > 0:
+            pygame.draw.rect(surf, tournament.color, (bar_x, bar_y, fill_w, bar_h), border_radius=3)
 
     # ------------------------------------------------------------------
     # Sub-draws
@@ -540,7 +587,7 @@ class HUD:
         surf.blit(panel, (x, y))
 
         n_unlocked = len(unlocked_ids)
-        title_font = pygame.font.SysFont(None, 24, bold=True)
+        title_font = pygame.font.SysFont(None, cfg.scaled_font_size(24), bold=True)
         title = title_font.render(
             i18n.t("hud.achievements_title", n=n_unlocked, total=len(ACHIEVEMENTS)), True, cfg.COLOR_GOLD)
         surf.blit(title, (x + box_w // 2 - title.get_width() // 2, y + 10))

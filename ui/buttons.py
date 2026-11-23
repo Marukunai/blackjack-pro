@@ -57,8 +57,8 @@ class Button:
 
     def _ensure_fonts(self) -> None:
         if self._font is None:
-            self._font     = pygame.font.SysFont(None, 20, bold=True)
-            self._font_key = pygame.font.SysFont(None, 15)
+            self._font     = pygame.font.SysFont(None, cfg.scaled_font_size(20), bold=True)
+            self._font_key = pygame.font.SysFont(None, cfg.scaled_font_size(15))
 
     def handle_event(self, event: pygame.event.Event) -> bool:
         """Devuelve True si el botón fue activado."""
@@ -186,7 +186,7 @@ class InsuranceBar:
 
     def _ensure_font(self) -> None:
         if self._font is None:
-            self._font = pygame.font.SysFont(None, 22, bold=True)
+            self._font = pygame.font.SysFont(None, cfg.scaled_font_size(22), bold=True)
 
     def handle_event(self, event: pygame.event.Event) -> bool:
         return self.btn_yes.handle_event(event) or self.btn_no.handle_event(event)

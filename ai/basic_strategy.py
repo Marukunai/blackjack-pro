@@ -137,6 +137,21 @@ def _resolve_action(action: BasicAction, hand: "Hand", rules: "Rules") -> BasicA
     """
     from core.rules import SurrenderRule, DoubleRule
 
+    # La rendición sólo es una opción legal como primerísima decisión de
+    # la mano (exactamente 2 cartas, sin provenir de un split y sin
+    # haberse rendido ya) -- igual que can_double/can_split ya exigen
+    # len(cards) == 2. Sin esta comprobación, una mano que ya ha pedido
+    # carta (p.ej. hard 15 tras un hit) podía recibir "surrender" como
+    # recomendación aunque el motor ya no la ofrezca como acción válida,
+    # dejando congelado para siempre a cualquiera que la ejecute a
+    # ciegas (p.ej. la IA de la Fase 33).
+    can_surrender = (
+        len(hand.cards) == 2
+        and not hand.is_split
+        and not hand.surrendered
+        and rules.surrender_rule != SurrenderRule.NONE
+    )
+
     match action:
         case BasicAction.D:
             if not hand.can_double:
@@ -148,13 +163,13 @@ def _resolve_action(action: BasicAction, hand: "Hand", rules: "Rules") -> BasicA
             if not hand.can_split:
                 return BasicAction.H
         case BasicAction.RP:
-            if rules.surrender_rule == SurrenderRule.NONE:
+            if not can_surrender:
                 return BasicAction.P if hand.can_split else BasicAction.H
         case BasicAction.R:
-            if rules.surrender_rule == SurrenderRule.NONE:
+            if not can_surrender:
                 return BasicAction.H
         case BasicAction.RS:
-            if rules.surrender_rule == SurrenderRule.NONE:
+            if not can_surrender:
                 return BasicAction.S
 
     return action
@@ -185,6 +200,61 @@ def recommended_play(hand: "Hand", dealer_upcard_value: int, rules: "Rules") -> 
     espera, ya resuelta a una opción realmente disponible."""
     action = get_basic_strategy(hand, dealer_upcard_value, rules)
     return _ACTION_TO_PLAY.get(action, "hit")
+
+
+# ------------------------------------------------------------------
+# Fase 38 -- "personalidades" de oponente IA: un pequeño desvío sobre la
+# recomendación de estrategia básica, para que no todos los bots jueguen
+# exactamente igual en una mesa con varios. Deliberadamente simple y
+# conservador en el propio código: solo toca si se dobla/se separa o no
+# (nunca convierte un hit/stand/surrender en otra cosa), así que el
+# resultado sigue siendo una jugada razonable en cualquier caso -- y
+# ui/renderer.py::_run_bot_turn valida igualmente la acción final contra
+# las que el motor considera disponibles ahora mismo, como red de
+# seguridad adicional (ver el bug de la "rendición fantasma" corregido
+# en _resolve_action más arriba).
+# ------------------------------------------------------------------
+PERSONALITIES = ("perfect", "conservative", "aggressive")
+
+
+def apply_personality(action: str, hand: "Hand", personality: str) -> str:
+    """Ajusta `action` (ya resuelta por recommended_play) según la
+    personalidad del bot:
+
+    - "perfect": sin cambios, estrategia básica tal cual.
+    - "conservative": nunca dobla ni separa -- prefiere pedir carta antes
+      que arriesgar el doble de apuesta o abrir una segunda mano. "hit"
+      siempre es una opción disponible mientras la mano siga en juego
+      (ver engine/actions.py::available_actions), así que esta rebaja
+      nunca puede toparse con una acción inválida.
+    - "aggressive": dobla más de lo que recomendaría la tabla (en
+      cualquier total duro de 9 a 11 en la primera decisión) y separa
+      cualquier par que pueda, en vez de pedir/plantarse -- un jugador
+      que se arriesga más de la cuenta, a propósito."""
+    if personality == "conservative":
+        if action in ("double", "split"):
+            return "hit"
+        return action
+
+    if personality == "aggressive":
+        is_first = len(hand.cards) == 2 and not hand.is_split
+        if action in ("hit", "stand") and hand.can_split:
+            return "split"
+        if (action in ("hit", "stand") and is_first and hand.can_double
+                and hand.is_hard and hand.value in (9, 10, 11)):
+            return "double"
+        return action
+
+    return action
+
+
+def recommended_play_with_personality(hand: "Hand", dealer_upcard_value: int, rules: "Rules",
+                                       personality: str = "perfect") -> str:
+    """Como recommended_play(), pero pasada por apply_personality() --
+    lo que de verdad consulta el oponente IA (ver
+    ui/renderer.py::_run_bot_turn)."""
+    action = recommended_play(hand, dealer_upcard_value, rules)
+    return apply_personality(action, hand, personality)
 
 
 # ------------------------------------------------------------------

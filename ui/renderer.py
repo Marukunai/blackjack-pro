@@ -27,9 +27,10 @@ from engine.game_engine import GameEngine
 from engine.game_state import GameState, ActionResult, RoundResult
 from engine.payout import HandPayout
 from engine.challenges import Challenge
+from engine.tournament import Tournament
 
 from ai.card_counter import HiLoCounter
-from ai.basic_strategy import recommended_play
+from ai.basic_strategy import recommended_play, recommended_play_with_personality
 
 from ui.card_generator import CardGenerator
 from ui.card_sprite import CardSprite
@@ -92,6 +93,7 @@ class Renderer:
     _RESULT    = "result"
     _GAMEOVER  = "gameover"
     _CHALLENGE_END = "challenge_end"   # Fase 25: fin de un Desafío (ganado o perdido)
+    _TOURNAMENT_END = "tournament_end" # Fase 39: fin de un Torneo (clasificación final)
 
     def __init__(self) -> None:
         # El mixer debe inicializarse con un formato conocido ANTES de
@@ -128,6 +130,16 @@ class Renderer:
         saved_language = app_settings.get("language")
         if saved_language:
             cfg.LANGUAGE = saved_language
+
+        # Accesibilidad guardada (Fase 41): igual que el tema y el idioma,
+        # se aplica ANTES de construir ninguna pantalla -- en particular
+        # antes de las fuentes propias del renderer más abajo, para que
+        # ya salgan con el tamaño elegido la última vez sin pasar por
+        # Ajustes. apply_high_contrast() no necesita ir antes de nada en
+        # concreto (solo reasigna colores que se leen en caliente), pero
+        # se aplica aquí mismo por coherencia con el resto de ajustes.
+        cfg.apply_font_scale(app_settings.get("font_scale") or cfg.DEFAULT_FONT_SCALE)
+        cfg.apply_high_contrast(bool(app_settings.get("high_contrast")))
 
         # Subsistemas de UI
         self.table      = Table(self.sw, self.sh)
@@ -167,6 +179,13 @@ class Renderer:
         self._challenge: Optional[Challenge] = None
         self._challenge_result: Optional[str] = None
 
+        # Fase 39: Torneo activo (None en una partida normal) y su
+        # clasificación final en cuanto se decide (lista de filas, ver
+        # _compute_tournament_rankings) -- mismo patrón que Desafío, solo
+        # que aquí no hay "ganado/perdido", solo un ranking.
+        self._tournament: Optional[Tournament] = None
+        self._tournament_rankings: Optional[list] = None
+
         # Secuenciador del turno del crupier (revela y pide carta a carta,
         # esperando a que cada animación termine antes de seguir)
         self._dealer_seq_active = False
@@ -184,6 +203,13 @@ class Renderer:
         # que _seat_status_text muestre el texto adecuado en cada caso.
         self._turn_reveal_wait = 0
         self._turn_reveal_reason: Optional[str] = None
+
+        # Fase 33: cuántos frames quedan antes de que un asiento de IA
+        # (Player.is_bot) ejecute su siguiente decisión -- se programa
+        # al entrar en su turno (ver _on_turn_change) y tras cada una de
+        # sus propias jugadas (ver _run_bot_turn), para que se vea
+        # "pensar" en vez de resolver toda su mano en un solo frame.
+        self._bot_wait = 0
 
         # Cámara: shake (bust) y zoom/flash dorado (blackjack)
         self._shake_time  = 0
@@ -237,11 +263,11 @@ class Renderer:
         self._rebet_hover:   bool = False
 
         # Fuentes auxiliares
-        self._font_msg   = pygame.font.SysFont(None, 32, bold=True)
-        self._font_small = pygame.font.SysFont(None, 20)
-        self._font_big   = pygame.font.SysFont(None, 60, bold=True)
-        self._font_seat  = pygame.font.SysFont(None, 18, bold=True)
-        self._font_seat_small = pygame.font.SysFont(None, 15)
+        self._font_msg   = pygame.font.SysFont(None, cfg.scaled_font_size(32), bold=True)
+        self._font_small = pygame.font.SysFont(None, cfg.scaled_font_size(20))
+        self._font_big   = pygame.font.SysFont(None, cfg.scaled_font_size(60), bold=True)
+        self._font_seat  = pygame.font.SysFont(None, cfg.scaled_font_size(18), bold=True)
+        self._font_seat_small = pygame.font.SysFont(None, cfg.scaled_font_size(15))
 
     # ──────────────────────────────────────────────────────────────────
     # Punto de entrada
@@ -269,22 +295,53 @@ class Renderer:
         camino de "un solo jugador" sigue siendo tan directo como antes
         (una pantalla de perfil + Enter en la de confirmación)."""
         seats: list[tuple[int, str]] = []
+        # Fase 38: personalidad de cada asiento de bot, por índice en
+        # `seats` (los asientos humanos no tienen entrada aquí -- se
+        # tratan como "perfect" sin más, aunque ai/basic_strategy.py
+        # nunca llega a consultarlo para ellos).
+        bot_personalities: dict[int, str] = {}
+        needs_profile_pick = True
         while True:
-            exclude = {pid for pid, _ in seats}
-            title = i18n.t("profile.title_default") if not seats else i18n.t("renderer.title_add_seat")
-            profile_select = ProfileSelect(self.screen, exclude_ids=exclude, title=title)
-            pid, name = profile_select.run()
-            seats.append((pid, name))
+            if needs_profile_pick:
+                exclude = {pid for pid, _ in seats}
+                title = i18n.t("profile.title_default") if not seats else i18n.t("renderer.title_add_seat")
+                profile_select = ProfileSelect(self.screen, exclude_ids=exclude, title=title)
+                pid, name = profile_select.run()
+                seats.append((pid, name))
+                needs_profile_pick = False
 
             if len(seats) >= SeatConfirmScreen.MAX_SEATS:
                 break
-            again = SeatConfirmScreen(self.screen, seats).run()
-            if not again:
+
+            choice, bot_personality = SeatConfirmScreen(self.screen, seats).run()
+            if choice == "play":
                 break
+            elif choice == "add_player":
+                needs_profile_pick = True
+            elif choice == "add_bot":
+                # Fase 33: un asiento de IA no tiene perfil real (ni
+                # fichas/historial persistentes) -- se marca con
+                # profile_id=None, igual que ya distingue este mismo
+                # campo en players_cfg más abajo (ver _start_game). Se
+                # vuelve a mostrar esta misma pantalla (sin pasar por
+                # ProfileSelect) para poder añadir otro Bot u otro
+                # jugador humano sin pasos de más.
+                bot_count = sum(1 for pid2, _ in seats if pid2 is None)
+                bot_name = i18n.t("profile.bot_seat_name")
+                if bot_count:
+                    bot_name = f"{bot_name} {bot_count + 1}"
+                # Fase 38: la personalidad va también en el nombre
+                # mostrado (seat strip, historial, panel de logros...)
+                # para que se note a simple vista con quién se está
+                # jugando, sin tener que acordarse del orden en que se
+                # añadieron los bots.
+                bot_name = f"{bot_name} ({i18n.bot_personality_label(bot_personality)})"
+                bot_personalities[len(seats)] = bot_personality
+                seats.append((None, bot_name))
 
         greeting = seats[0][1] if len(seats) == 1 else ", ".join(n for _, n in seats)
         menu = MainMenu(self.screen, greeting, seats=seats, sounds=self.sounds)
-        preset_name, custom_rules, challenge = menu.run()
+        preset_name, custom_rules, challenge, tournament = menu.run()
 
         # El menú (o su pantalla de Ajustes, Fase 15) puede haber cambiado
         # el tema de mesa/cartas en caliente -- se invalida aquí, siempre,
@@ -294,28 +351,43 @@ class Renderer:
         self.table.invalidate()
         self.card_gen.invalidate_back()
 
-        self._start_game(seats, preset_name, custom_rules, challenge)
+        self._start_game(seats, preset_name, custom_rules, challenge, bot_personalities, tournament)
 
     def _start_game(self, seats: list[tuple[int, str]], preset_name: str,
                      custom_rules: Optional[Rules] = None,
-                     challenge: Optional[Challenge] = None) -> None:
+                     challenge: Optional[Challenge] = None,
+                     bot_personalities: Optional[dict[int, str]] = None,
+                     tournament: Optional[Tournament] = None) -> None:
         # Fase 25: un Desafío trae sus propias reglas/fichas (ver
         # Challenge.build_rules) y anula tanto preset_name como
         # custom_rules -- se etiqueta el hand_history con su nombre para
         # poder distinguirlo de una partida normal si se mira el
-        # historial más tarde.
+        # historial más tarde. Fase 39: un Torneo funciona igual (y es
+        # mutuamente excluyente con un Desafío -- MainMenu solo deja
+        # elegir uno de los dos, nunca ambos a la vez).
         self._challenge = challenge
         self._challenge_result: Optional[str] = None
+        self._tournament = tournament
+        self._tournament_rankings: Optional[list] = None
         if challenge is not None:
             rules = challenge.build_rules()
             challenge_name, _ = i18n.challenge_text(challenge)
             preset_name = i18n.t("renderer.challenge_preset_label", name=challenge_name)
+        elif tournament is not None:
+            rules = tournament.build_rules()
+            tournament_name, _ = i18n.tournament_text(tournament)
+            preset_name = i18n.t("renderer.tournament_preset_label", name=tournament_name)
         else:
             # "Personalizado" trae ya el objeto Rules hecho a mano en
             # RulesEditor; cualquier otro nombre es uno de los presets
             # fijos de config/rules_presets.py, como siempre.
             rules = custom_rules if custom_rules is not None else get_preset(preset_name)
-        players_cfg = [{"name": name, "profile_id": pid} for pid, name in seats]
+        bot_personalities = bot_personalities or {}
+        players_cfg = [
+            {"name": name, "profile_id": pid, "is_bot": pid is None,
+             "bot_personality": bot_personalities.get(i, "perfect")}
+            for i, (pid, name) in enumerate(seats)
+        ]
         self._engine = GameEngine(rules=rules, players=players_cfg, preset_name=preset_name)
         self._engine.auto_dealer_turn = False   # la UI Pygame pacea el turno del crupier
         self._engine.auto_advance     = False   # y también el reparto inicial, jugador a jugador
@@ -366,6 +438,8 @@ class Renderer:
             self.sw, self.sh,
             perfect_pairs_allowed=rules.perfect_pairs_allowed,
             twentyone_plus_three_allowed=rules.twentyone_plus_three_allowed,
+            lucky_ladies_allowed=rules.lucky_ladies_allowed,
+            royal_match_allowed=rules.royal_match_allowed,
         )
         self._deal_btn  = pygame.Rect(self.sw//2 - 80, self.sh - 70, 160, 44)
         self._rebet_btn = pygame.Rect(self.sw//2 + 90, self.sh - 70, 140, 44)
@@ -392,6 +466,16 @@ class Renderer:
         # exactamente las fichas que anuncia -- nunca con el saldo real.
         if challenge is not None:
             self._engine.player.chips = challenge.starting_chips
+
+        # Fase 39: mismo motivo que arriba, pero para TODOS los asientos
+        # -- un Torneo solo tiene sentido si todo el mundo arranca con
+        # exactamente las mismas fichas, nunca con el saldo real
+        # (potencialmente muy distinto) que cada perfil tuviera guardado.
+        # Los asientos de bot no tienen perfil real, así que para ellos
+        # esto no cambia nada respecto a lo que ya hacía start_game().
+        if tournament is not None:
+            for p in self._engine.players:
+                p.chips = tournament.starting_chips
 
         self._state = self._BETTING
 
@@ -513,7 +597,10 @@ class Renderer:
         self._last_bet_by_player[bettor] = self._pending_bet
         pp = self._side_bet_panel.value_for("perfect_pairs") if self._side_bet_panel else 0.0
         tp3 = self._side_bet_panel.value_for("21+3") if self._side_bet_panel else 0.0
-        ok = self._engine.place_bet(self._pending_bet, perfect_pairs=pp, twentyone_plus_three=tp3)
+        ll = self._side_bet_panel.value_for("lucky_ladies") if self._side_bet_panel else 0.0
+        rm = self._side_bet_panel.value_for("royal_match") if self._side_bet_panel else 0.0
+        ok = self._engine.place_bet(self._pending_bet, perfect_pairs=pp, twentyone_plus_three=tp3,
+                                     lucky_ladies=ll, royal_match=rm)
         if ok:
             self._pending_bet = 0.0
             if self._side_bet_panel:
@@ -627,6 +714,14 @@ class Renderer:
             if phase != "deal" and self._engine:
                 self._rebuild_spotlight_sprites(player_index)
 
+        # Fase 33: si el foco pasa a un asiento de IA para apostar,
+        # decidir sobre el seguro o jugar su mano, se programa su
+        # siguiente jugada con una pequeña pausa (ver _update/_run_bot_turn)
+        # en vez de resolverla al instante -- así se puede seguir en
+        # pantalla igual que una jugada humana.
+        if phase in ("bet", "insurance", "play") and self._is_bot_seat(player_index):
+            self._bot_wait = self._bot_pause()
+
     def _rebuild_spotlight_sprites(self, player_index: int) -> None:
         """Reconstruye instantáneamente (sin animación de reparto) los
         sprites de las cartas que ya se le repartieron a este jugador."""
@@ -718,6 +813,17 @@ class Renderer:
                 # duplicar lógica de fichas aquí).
                 if self._challenge is not None and self._challenge_result is None:
                     self._challenge_result = "lost"
+                # Fase 39: un Torneo en solitario (mesa de un solo
+                # asiento) SÍ puede quebrar antes de llegar a hand_limit
+                # -- en multijugador esto nunca pasa (GameEngine recarga
+                # las fichas de cualquier asiento que no llegue al mínimo,
+                # ver _advance_to_next_bettor), pero en solitario es la
+                # única forma en que un Torneo puede acabar sin que se
+                # resuelva una ronda entera con el límite ya alcanzado.
+                # Se calcula el ranking (de un solo nombre, con 0 fichas)
+                # igual que si hubiera llegado al límite normalmente.
+                if self._tournament is not None and self._tournament_rankings is None:
+                    self._tournament_rankings = self._compute_tournament_rankings()
                 # Mismo motivo que en BETTING: no cortar la pantalla de
                 # resultado si todavía se está mostrando.
                 if self._state != self._RESULT:
@@ -768,6 +874,15 @@ class Renderer:
             status = self._challenge.evaluate(self._engine.player.stats, self._engine.player.chips)
             if status != "in_progress":
                 self._challenge_result = status
+
+        # Fase 39: igual que un Desafío, pero sin condición de victoria
+        # que evaluar -- un Torneo simplemente termina en cuanto se
+        # alcanza su hand_limit (todos los asientos juegan siempre el
+        # mismo número de rondas, así que basta con mirar las del primer
+        # asiento, igual que ya hace Challenge.evaluate() más arriba).
+        if self._tournament is not None and self._tournament_rankings is None:
+            if self._engine.player.stats.hands_played >= self._tournament.hand_limit:
+                self._tournament_rankings = self._compute_tournament_rankings()
 
         # Actualizar contador con hole card ya revelada
         self.counter.update_deck_estimate(self._engine.deck)
@@ -845,8 +960,14 @@ class Renderer:
         principal, que se resuelve por separado al final de la ronda."""
         base_y = self.sh // 2 - 130
         any_won = False
+        sidebet_kind_labels = {
+            "perfect_pairs": i18n.t("renderer.sidebet_perfect_pairs"),
+            "21+3": "21+3",
+            "lucky_ladies": "Lucky Ladies",
+            "royal_match": "Royal Match",
+        }
         for i, outcome in enumerate(outcomes):
-            kind_label = i18n.t("renderer.sidebet_perfect_pairs") if outcome.kind == "perfect_pairs" else "21+3"
+            kind_label = sidebet_kind_labels.get(outcome.kind, outcome.kind)
             outcome_label = i18n.side_bet_label(outcome.label)
             if outcome.won:
                 any_won = True
@@ -1101,11 +1222,87 @@ class Renderer:
             if self._result_timer <= 0:
                 self._advance_from_result()
 
+        # Fase 33: cuenta atrás antes de la siguiente jugada de un
+        # asiento de IA (apostar, seguro, o una acción de su turno).
+        if self._bot_wait > 0:
+            self._bot_wait -= 1
+            if self._bot_wait <= 0:
+                self._run_bot_turn()
+
     def _dealer_pause(self, long: bool = False) -> int:
         """Frames de espera entre pasos del crupier (y del reparto
         multijugador), con variación orgánica."""
         base = random.randint(28, 40) if long else random.randint(20, 34)
         return int(base / max(0.1, getattr(cfg, "ANIMATION_SPEED", 1.0)))
+
+    def _bot_pause(self) -> int:
+        """Frames de espera antes de la siguiente jugada de un asiento de
+        IA (Fase 33) -- algo más larga que la del crupier, para que se
+        note que "está pensando" en vez de resolver su mano entera de
+        golpe en un solo frame."""
+        base = random.randint(45, 70)
+        return int(base / max(0.1, getattr(cfg, "ANIMATION_SPEED", 1.0)))
+
+    def _is_bot_seat(self, player_index: int) -> bool:
+        if not self._engine or not (0 <= player_index < len(self._engine.players)):
+            return False
+        return self._engine.players[player_index].is_bot
+
+    def _run_bot_turn(self) -> None:
+        """Resuelve la siguiente jugada del asiento de IA que tiene el
+        foco ahora mismo, reutilizando los mismos métodos que una
+        decisión humana (_confirm_bet/_on_insurance_answer/
+        _on_player_action) para que suene/anime exactamente igual.
+
+        Nunca decide por sí sola si el foco ya ha cambiado de asiento
+        mientras esperaba (p.ej. el motor avanzó solo por una mano sin
+        ninguna acción posible) -- en ese caso _on_turn_change ya habrá
+        programado la pausa que corresponda para quien tenga el foco
+        ahora, bot o no."""
+        engine = self._engine
+        if not engine:
+            return
+        idx = engine.active_player_index
+        if not self._is_bot_seat(idx):
+            return
+
+        if self._state == self._BETTING and engine.state == GameState.BETTING:
+            self.sounds.play("button")
+            engine.place_bet(engine.rules.min_bet)
+
+        elif self._state == self._INSURANCE and engine.state == GameState.INSURANCE:
+            # Estrategia básica: nunca conviene tomar el seguro (ni el
+            # even money) sin contar cartas -- la IA siempre lo rechaza.
+            self._on_insurance_answer("no")
+
+        elif self._state == self._PLAYING and engine.state == GameState.PLAYER_TURN:
+            hand = engine.player.active_hand
+            if hand is not None and not hand.is_finished:
+                upcard = engine.dealer.upcard
+                upcard_value = upcard.value if upcard else 10
+                personality = getattr(engine.player, "bot_personality", "perfect")
+                action = recommended_play_with_personality(hand, upcard_value, engine.rules, personality)
+                # Red de seguridad: si por cualquier motivo la acción
+                # recomendada no es realmente una opción válida ahora
+                # mismo (desajuste entre ai/basic_strategy y las reglas
+                # del motor), caer a "hit"/"stand" en vez de ejecutar
+                # una acción inválida -- eso no haría nada y dejaría a
+                # este asiento congelado para siempre (ver bug de la
+                # rendición "fantasma" ya corregido en basic_strategy).
+                valid = engine.get_available_actions()
+                if action not in valid:
+                    action = "hit" if "hit" in valid else "stand"
+                self._on_player_action(action)
+                # Si tras esta jugada sigue siendo el turno de este mismo
+                # bot con una mano activa (p.ej. ha pedido carta y no se
+                # ha plantado ni pasado), se encadena otra pausa para su
+                # siguiente decisión -- si en cambio el motor ya ha
+                # pasado el foco a otro asiento, _on_turn_change se
+                # encarga de programar lo que corresponda.
+                if (engine.state == GameState.PLAYER_TURN
+                        and engine.active_player_index == idx
+                        and engine.player.active_hand is not None):
+                    self._bot_wait = self._bot_pause()
 
     def _double_reveal_pause(self) -> int:
         """Frames de espera tras doblar en multijugador antes de pasar el
@@ -1168,7 +1365,10 @@ class Renderer:
             self._engine.finish_dealer_turn()
 
     def _advance_from_result(self) -> None:
-        if self._challenge_result is not None:
+        if self._tournament_rankings is not None:
+            self.hud.clear_transient()
+            self._state = self._TOURNAMENT_END
+        elif self._challenge_result is not None:
             self.hud.clear_transient()
             self._state = self._CHALLENGE_END
         elif self._engine.state == GameState.GAME_OVER:
@@ -1252,24 +1452,31 @@ class Renderer:
                 self._draw_gameover(surf)
             case self._CHALLENGE_END:
                 self._draw_challenge_end(surf)
+            case self._TOURNAMENT_END:
+                self._draw_tournament_end(surf)
 
-        # 7. Tira de asientos (solo multijugador)
-        if self._engine and len(self._engine.players) > 1:
+        # 7. Tira de asientos (solo multijugador) -- oculta en la pantalla
+        # de fin de Torneo (Fase 39): el ranking final ya muestra a todos
+        # los asientos con su nombre/avatar/fichas, así que repetirla
+        # detrás solo añadiría ruido visual.
+        if self._engine and len(self._engine.players) > 1 and self._state != self._TOURNAMENT_END:
             self._draw_seat_strip(surf)
 
         # 8. HUD (hints, contador, mensajes flotantes, banner, panel de logros)
         active_unlocked = (self._unlocked_achievement_ids[self._engine.active_player_index]
                             if self._engine and self._engine.active_player_index < len(self._unlocked_achievement_ids)
                             else set())
-        # El banner de progreso del Desafío no aporta nada de más sobre la
-        # propia pantalla de fin de Desafío (que ya repite ese mismo
+        # El banner de progreso del Desafío/Torneo no aporta nada de más
+        # sobre su propia pantalla de fin (que ya repite ese mismo
         # nombre/cifras a tamaño completo) -- se oculta ahí para no
         # duplicar información.
-        banner_challenge = self._challenge if self._state not in (self._GAMEOVER, self._CHALLENGE_END) else None
+        hide_banners = self._state in (self._GAMEOVER, self._CHALLENGE_END, self._TOURNAMENT_END)
+        banner_challenge = self._challenge if not hide_banners else None
+        banner_tournament = self._tournament if not hide_banners else None
         self.hud.draw(surf, engine=self._engine, counter=self.counter,
                        unlocked_achievements=active_unlocked,
                        training_stats=(self._training_correct, self._training_total),
-                       challenge=banner_challenge)
+                       challenge=banner_challenge, tournament=banner_tournament)
 
         # 8b. Feedback puntual del modo entrenamiento (encima del HUD normal,
         #     posición fija -- no sube ni se desvía como los mensajes flotantes)
@@ -1584,6 +1791,80 @@ class Renderer:
 
         restart = self._font_msg.render(i18n.t("renderer.esc_to_menu"), True, (160, 160, 160))
         surf.blit(restart, (self.sw // 2 - restart.get_width() // 2, self.sh - 80))
+
+    # Oro / plata / bronce para las 3 primeras filas de la clasificación
+    # -- el resto (torneos de más de 3 asientos, si los hubiera algún
+    # día) cae a un gris neutro.
+    _RANK_COLORS = [(212, 175, 55), (192, 192, 200), (176, 116, 62)]
+
+    def _compute_tournament_rankings(self) -> list[tuple[str, float, tuple]]:
+        """Clasificación final del Torneo activo: (nombre, fichas,
+        avatar) por asiento, de más a menos fichas. Se llama en cuanto se
+        alcanza hand_limit (_on_round_end) o, en un Torneo en solitario,
+        si se quiebra antes de llegar a él (_on_state_change/GAME_OVER)
+        -- el resultado se congela en self._tournament_rankings para
+        toda la pantalla de fin de Torneo, así que esto solo se calcula
+        una vez por partida."""
+        rows: list[tuple[str, float, tuple]] = []
+        for i, player in enumerate(self._engine.players):
+            name = self._seat_names[i] if i < len(self._seat_names) else player.name
+            avatar = (self._seat_avatars[i] if i < len(self._seat_avatars)
+                      else ("S", (212, 175, 55)))
+            rows.append((name, player.chips, avatar))
+        rows.sort(key=lambda r: r[1], reverse=True)
+        return rows
+
+    def _draw_tournament_end(self, surf: pygame.Surface) -> None:
+        """Pantalla de fin de Torneo (Fase 39) -- clasificación final de
+        todos los asientos por fichas, de más a menos. Mismo patrón
+        visual que _draw_challenge_end/_draw_gameover (overlay oscuro +
+        texto centrado), pero con una fila por asiento en vez de un único
+        ganado/perdido: aquí no hay "tú ganas/pierdes", solo un ranking."""
+        overlay = pygame.Surface((self.sw, self.sh), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 190))
+        surf.blit(overlay, (0, 0))
+
+        rows = self._tournament_rankings or []
+        row_w, row_h, gap = 460, 46, 8
+        box_h = 96 + len(rows) * (row_h + gap)
+        top_y = max(40, self.sh // 2 - box_h // 2)
+
+        t1 = self._font_big.render(i18n.t("renderer.tournament_end_title"), True, cfg.COLOR_GOLD)
+        surf.blit(t1, (self.sw // 2 - t1.get_width() // 2, top_y))
+
+        if self._tournament is not None:
+            tournament_name, _ = i18n.tournament_text(self._tournament)
+            name_s = self._font_msg.render(tournament_name, True, cfg.COLOR_TEXT)
+            surf.blit(name_s, (self.sw // 2 - name_s.get_width() // 2, top_y + 56))
+
+        x0 = self.sw // 2 - row_w // 2
+        y = top_y + 100
+        for i, (name, chips, avatar) in enumerate(rows):
+            rank_col = self._RANK_COLORS[i] if i < len(self._RANK_COLORS) else (150, 150, 150)
+            box = pygame.Surface((row_w, row_h), pygame.SRCALPHA)
+            pygame.draw.rect(box, (0, 0, 0, 130), box.get_rect(), border_radius=10)
+            pygame.draw.rect(box, (*rank_col, 230), box.get_rect(), 2 if i == 0 else 1, border_radius=10)
+            surf.blit(box, (x0, y))
+
+            rank_s = self._font_msg.render(f"{i + 1}º", True, rank_col)
+            surf.blit(rank_s, (x0 + 14, y + row_h // 2 - rank_s.get_height() // 2))
+
+            shape, color = avatar
+            draw_avatar(surf, shape, color, x0 + 72, y + row_h // 2, 14)
+
+            display_name = name if len(name) <= 22 else name[:21] + "…"
+            name_s = self._font_small.render(display_name, True, cfg.COLOR_TEXT)
+            surf.blit(name_s, (x0 + 96, y + row_h // 2 - name_s.get_height() // 2))
+
+            chips_s = self._font_msg.render(f"${int(chips)}", True, rank_col)
+            surf.blit(chips_s, (x0 + row_w - chips_s.get_width() - 16,
+                                 y + row_h // 2 - chips_s.get_height() // 2))
+
+            y += row_h + gap
+
+        restart = self._font_msg.render(i18n.t("renderer.esc_to_menu"), True, (160, 160, 160))
+        surf.blit(restart, (self.sw // 2 - restart.get_width() // 2,
+                             min(self.sh - 60, y + 20)))
 
     def _draw_seat_strip(self, surf: pygame.Surface) -> None:
         """Tira horizontal en la parte superior con un resumen de cada

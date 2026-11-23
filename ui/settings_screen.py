@@ -30,6 +30,12 @@ _LANGS = ("es", "en", "fr", "pt", "de")
 _LANG_BTN_W, _LANG_BTN_H = 46, 30
 _LANG_BTN_GAP = 6
 
+# Fase 41: accesibilidad (tamaño de letra + alto contraste) -- misma
+# esquina superior derecha que el idioma, justo debajo, con el mismo
+# patrón de píldoras compactas (ver _draw_language_toggle).
+_ACCESS_BTN_W, _ACCESS_BTN_H = 70, 28
+_ACCESS_BTN_GAP = 6
+
 
 class SettingsScreen:
     """Pantalla de solo-preferencias: sin "Guardar"/"Cancelar" -- cada
@@ -96,6 +102,34 @@ class SettingsScreen:
             self._lang_rects[lang] = pygame.Rect(x, 22, _LANG_BTN_W, _LANG_BTN_H)
         self._lang_hover: dict[str, bool] = {lang: False for lang in _LANGS}
 
+        # ---- Accesibilidad (Fase 41) ----
+        # Dos filas más de píldoras, justo debajo del idioma y alineadas
+        # al mismo borde derecho -- tamaño de letra (normal/grande) y
+        # alto contraste (sí/no), ambas aplicadas y persistidas al
+        # instante igual que el resto de esta pantalla.
+        self._font_scale = (cfg.CURRENT_FONT_SCALE if cfg.CURRENT_FONT_SCALE in cfg.FONT_SCALE_OPTIONS
+                             else cfg.DEFAULT_FONT_SCALE)
+        font_keys = list(cfg.FONT_SCALE_OPTIONS.keys())
+        total_w_fs = len(font_keys) * _ACCESS_BTN_W + (len(font_keys) - 1) * _ACCESS_BTN_GAP
+        x0_fs = self.sw - 20 - total_w_fs
+        font_row_y = self._lang_rects[_LANGS[0]].bottom + 8
+        self._font_scale_rects: dict[str, pygame.Rect] = {}
+        for i, key in enumerate(font_keys):
+            x = x0_fs + i * (_ACCESS_BTN_W + _ACCESS_BTN_GAP)
+            self._font_scale_rects[key] = pygame.Rect(x, font_row_y, _ACCESS_BTN_W, _ACCESS_BTN_H)
+        self._font_scale_hover: dict[str, bool] = {k: False for k in font_keys}
+
+        self._high_contrast = bool(cfg.HIGH_CONTRAST)
+        contrast_keys = ["off", "on"]
+        total_w_hc = len(contrast_keys) * _ACCESS_BTN_W + (len(contrast_keys) - 1) * _ACCESS_BTN_GAP
+        x0_hc = self.sw - 20 - total_w_hc
+        contrast_row_y = font_row_y + _ACCESS_BTN_H + 8
+        self._contrast_rects: dict[str, pygame.Rect] = {}
+        for i, key in enumerate(contrast_keys):
+            x = x0_hc + i * (_ACCESS_BTN_W + _ACCESS_BTN_GAP)
+            self._contrast_rects[key] = pygame.Rect(x, contrast_row_y, _ACCESS_BTN_W, _ACCESS_BTN_H)
+        self._contrast_hover: dict[str, bool] = {k: False for k in contrast_keys}
+
     # ------------------------------------------------------------------
     def _layout(self) -> None:
         table_names = list(cfg.TABLE_THEMES.keys())
@@ -152,6 +186,10 @@ class SettingsScreen:
             self._sfx_mute_hover = self._sfx_mute_rect.collidepoint(event.pos)
             for lang, r in self._lang_rects.items():
                 self._lang_hover[lang] = r.collidepoint(event.pos)
+            for key, r in self._font_scale_rects.items():
+                self._font_scale_hover[key] = r.collidepoint(event.pos)
+            for key, r in self._contrast_rects.items():
+                self._contrast_hover[key] = r.collidepoint(event.pos)
             if self._dragging == "music":
                 self._set_music_volume(self._value_from_x(self._music_track, event.pos[0]))
             elif self._dragging == "sfx":
@@ -170,6 +208,14 @@ class SettingsScreen:
             for lang, r in self._lang_rects.items():
                 if r.collidepoint(event.pos):
                     self._choose_language(lang)
+                    return
+            for key, r in self._font_scale_rects.items():
+                if r.collidepoint(event.pos):
+                    self._choose_font_scale(key)
+                    return
+            for key, r in self._contrast_rects.items():
+                if r.collidepoint(event.pos):
+                    self._choose_high_contrast(key == "on")
                     return
             for name, r in self._table_rects:
                 if r.collidepoint(event.pos):
@@ -208,6 +254,20 @@ class SettingsScreen:
         self._lang = lang
         cfg.LANGUAGE = lang
         self.app_settings.set("language", lang)
+
+    def _choose_font_scale(self, key: str) -> None:
+        if key == self._font_scale:
+            return
+        if cfg.apply_font_scale(key):
+            self._font_scale = key
+            self.app_settings.set("font_scale", key)
+
+    def _choose_high_contrast(self, enabled: bool) -> None:
+        if enabled == self._high_contrast:
+            return
+        self._high_contrast = enabled
+        cfg.apply_high_contrast(enabled)
+        self.app_settings.set("high_contrast", enabled)
 
     # ------------------------------------------------------------------
     # Audio (Fase 16)
@@ -255,6 +315,7 @@ class SettingsScreen:
         surf.blit(title, (self.sw // 2 - title.get_width() // 2, 50))
 
         self._draw_language_toggle(surf)
+        self._draw_accessibility_toggle(surf)
 
         sect1 = self._font_section.render(i18n.t("settings.table_section"), True, cfg.COLOR_TEXT)
         surf.blit(sect1, (self.sw // 2 - sect1.get_width() // 2, self._row1_y - 34))
@@ -295,6 +356,45 @@ class SettingsScreen:
             pygame.draw.rect(surf, border, rect, 2 if active else 1, border_radius=8)
             t = self._font_label.render(text, True, col)
             surf.blit(t, (rect.centerx - t.get_width() // 2, rect.centery - t.get_height() // 2))
+
+    def _draw_accessibility_toggle(self, surf: pygame.Surface) -> None:
+        """Dos filas de píldoras bajo el idioma: tamaño de letra y alto
+        contraste -- mismo patrón visual/interacción exacto que
+        _draw_language_toggle de arriba, solo que con 2 opciones cada una
+        en vez de 5."""
+        first_fs = self._font_scale_rects[list(self._font_scale_rects.keys())[0]]
+        lbl_fs = self._font_small.render(i18n.t("settings.font_scale_section"), True, (140, 140, 140))
+        surf.blit(lbl_fs, (first_fs.x - lbl_fs.get_width() - 10,
+                            first_fs.centery - lbl_fs.get_height() // 2))
+        for key, rect in self._font_scale_rects.items():
+            active = (key == self._font_scale)
+            hover = self._font_scale_hover[key]
+            text = i18n.t(f"settings.font_scale_{key}")
+            self._draw_pill(surf, rect, text, active, hover, self._font_small)
+
+        first_hc = self._contrast_rects["off"]
+        lbl_hc = self._font_small.render(i18n.t("settings.high_contrast_section"), True, (140, 140, 140))
+        surf.blit(lbl_hc, (first_hc.x - lbl_hc.get_width() - 10,
+                            first_hc.centery - lbl_hc.get_height() // 2))
+        for key, rect in self._contrast_rects.items():
+            active = (self._high_contrast if key == "on" else not self._high_contrast)
+            hover = self._contrast_hover[key]
+            text = i18n.t("settings.on" if key == "on" else "settings.off")
+            self._draw_pill(surf, rect, text, active, hover, self._font_small)
+
+    @staticmethod
+    def _draw_pill(surf: pygame.Surface, rect: pygame.Rect, text: str, active: bool,
+                    hover: bool, font: pygame.font.Font) -> None:
+        if active:
+            bg, border, col = (60, 45, 10), cfg.COLOR_GOLD, cfg.COLOR_GOLD
+        else:
+            bg = (20, 15, 0)
+            border = cfg.COLOR_GOLD if hover else (110, 110, 110)
+            col = (220, 220, 220) if hover else (150, 150, 150)
+        pygame.draw.rect(surf, bg, rect, border_radius=8)
+        pygame.draw.rect(surf, border, rect, 2 if active else 1, border_radius=8)
+        t = font.render(text, True, col)
+        surf.blit(t, (rect.centerx - t.get_width() // 2, rect.centery - t.get_height() // 2))
 
     def _draw_audio_row(self, surf: pygame.Surface, label: str, track: pygame.Rect,
                          mute_rect: pygame.Rect, vol: float, on: bool, mute_hover: bool) -> None:

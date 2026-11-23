@@ -30,7 +30,7 @@ FULLSCREEN    = False
 # Versión mostrada en el menú principal y usada por installer.iss (Fase 25:
 # hay que mantener ambas en sincronía a mano -- installer.iss no puede leer
 # este archivo Python durante la compilación de Inno Setup).
-APP_VERSION   = "1.4.0"
+APP_VERSION   = "1.6.0"
 
 # ------------------------------------------------------------------
 # Audio
@@ -132,6 +132,91 @@ def apply_card_back_theme(name: str) -> bool:
     CARD_BACK_PATTERN = theme["pattern"]
     CURRENT_CARD_BACK_THEME = name
     return True
+
+
+# ------------------------------------------------------------------
+# Accesibilidad (Fase 41): tamaño de letra y alto contraste. Mismo
+# patrón "valor efectivo mutable" que los temas de arriba -- FONT_SCALE
+# y los COLOR_* que alto contraste reescribe son los que el resto de la
+# UI ya lee en caliente (cfg.COLOR_TEXT, cfg.COLOR_GOLD...), así que
+# activar alto contraste no necesita tocar ui/*.py en absoluto: su
+# impacto es automático en cualquier pantalla. El tamaño de letra, en
+# cambio, SÍ necesita que cada punto de la UI pida su tamaño de fuente
+# con scaled_font_size() en vez de un número suelto -- se ha aplicado a
+# las pantallas que más se miran mientras se juega (mesa, HUD, botones de
+# acción, fichas, apuestas laterales, menú principal), no a cada pantalla
+# secundaria del proyecto (ver comentario en ui/hud.py).
+# ------------------------------------------------------------------
+FONT_SCALE_OPTIONS: dict[str, float] = {
+    "normal": 1.0,
+    "large": 1.3,
+}
+DEFAULT_FONT_SCALE = "normal"
+CURRENT_FONT_SCALE = DEFAULT_FONT_SCALE
+FONT_SCALE = FONT_SCALE_OPTIONS[DEFAULT_FONT_SCALE]
+
+HIGH_CONTRAST = False
+
+# Paleta "normal" (la de siempre, definida más arriba) guardada aparte
+# para poder volver a ella al desactivar alto contraste sin reconstruir
+# nada -- igual que CURRENT_TABLE_THEME no hace falta recordar la paleta
+# anterior porque TABLE_THEMES ya la tiene, aquí se guarda una vez porque
+# estos colores no viven en ningún diccionario de temas.
+_NORMAL_COLORS = {
+    "COLOR_TEXT": COLOR_TEXT,
+    "COLOR_BG": COLOR_BG,
+    "COLOR_GOLD": COLOR_GOLD,
+    "COLOR_WIN": COLOR_WIN,
+    "COLOR_LOSE": COLOR_LOSE,
+    "COLOR_PUSH": COLOR_PUSH,
+}
+# Paleta de alto contraste: negro puro, blanco puro y colores de
+# resultado más saturados -- pensada para leerse bien incluso con poca
+# agudeza visual o en una pantalla con mal brillo/contraste.
+_HIGH_CONTRAST_COLORS = {
+    "COLOR_TEXT": (255, 255, 255),
+    "COLOR_BG": (0, 0, 0),
+    "COLOR_GOLD": (255, 221, 0),
+    "COLOR_WIN": (70, 255, 70),
+    "COLOR_LOSE": (255, 60, 60),
+    "COLOR_PUSH": (255, 255, 70),
+}
+
+
+def scaled_font_size(base_size: int) -> int:
+    """Tamaño de fuente efectivo tras aplicar FONT_SCALE. Se usa en los
+    puntos de la UI listados arriba al construir sus pygame.font.Font en
+    vez de pasar el tamaño base directamente; nunca baja de 1px."""
+    return max(1, round(base_size * FONT_SCALE))
+
+
+def apply_font_scale(name: str) -> bool:
+    """Cambia el tamaño de letra en caliente. Devuelve False si el
+    nombre no existe (no cambia nada) -- igual que apply_table_theme."""
+    global FONT_SCALE, CURRENT_FONT_SCALE
+    if name not in FONT_SCALE_OPTIONS:
+        return False
+    FONT_SCALE = FONT_SCALE_OPTIONS[name]
+    CURRENT_FONT_SCALE = name
+    return True
+
+
+def apply_high_contrast(enabled: bool) -> None:
+    """Activa/desactiva el modo de alto contraste en caliente,
+    reasignando los COLOR_* efectivos que ya lee toda la UI -- a
+    diferencia del tamaño de letra, esto no necesita ningún cambio en
+    ui/*.py: cualquier pantalla que ya pinte con cfg.COLOR_TEXT/COLOR_GOLD
+    /etc. (todas) cambia de paleta sola en el siguiente frame."""
+    global HIGH_CONTRAST, COLOR_TEXT, COLOR_BG, COLOR_GOLD, COLOR_WIN, COLOR_LOSE, COLOR_PUSH
+    HIGH_CONTRAST = bool(enabled)
+    palette = _HIGH_CONTRAST_COLORS if HIGH_CONTRAST else _NORMAL_COLORS
+    COLOR_TEXT = palette["COLOR_TEXT"]
+    COLOR_BG = palette["COLOR_BG"]
+    COLOR_GOLD = palette["COLOR_GOLD"]
+    COLOR_WIN = palette["COLOR_WIN"]
+    COLOR_LOSE = palette["COLOR_LOSE"]
+    COLOR_PUSH = palette["COLOR_PUSH"]
+
 
 # ------------------------------------------------------------------
 # Tamaños de cartas en pantalla

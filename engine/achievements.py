@@ -11,7 +11,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable, TYPE_CHECKING
+from typing import Callable, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from core.player import Player, SessionStats
@@ -86,9 +86,40 @@ ACHIEVEMENTS: list[Achievement] = [
                 "D", (70, 120, 200), lambda s, p: s.peak_chips >= 25000),
     Achievement("profitable", "Cuentas claras", "Termina en positivo tras al menos 50 manos.",
                 "coin", (100, 200, 140), lambda s, p: s.hands_played >= 50 and s.net_profit > 0),
+
+    # --- Fase 37: ligados a las apuestas laterales nuevas (Fase 31) y a
+    # los oponentes IA (Fase 35) ---
+    Achievement("lucky_lady", "Dama de la suerte", "Gana con la apuesta lateral Lucky Ladies.",
+                "H", (220, 80, 140), lambda s, p: s.lucky_ladies_wins >= 1),
+    Achievement("royal_pair", "Pareja real", "Gana con la apuesta lateral Royal Match.",
+                "S", (212, 175, 55), lambda s, p: s.royal_match_wins >= 1),
+    Achievement("vs_bots", "Contra las máquinas", "Juega una mano en una mesa con algún oponente IA.",
+                "D", (120, 160, 200), lambda s, p: s.hands_vs_bot >= 1),
+
+    # Fase 37: logro "meta", no ligado a ninguna estadística de partida --
+    # se desbloquea directamente desde ui/profile_select.py al exportar o
+    # importar una copia de seguridad (Fase 34), no mediante este check()
+    # (que por eso siempre devuelve False: check_and_unlock() lo evalúa
+    # cada ronda igualmente, pero nunca lo concede por sí solo).
+    Achievement("backup_used", "Copia de seguridad", "Exporta o importa una copia de seguridad de tu perfil.",
+                "coin", (100, 180, 160), lambda s, p: False),
 ]
 
 BY_ID: dict[str, Achievement] = {a.id: a for a in ACHIEVEMENTS}
+
+
+def unlock_backup_achievement(profile_id, store: "ProfileStore") -> Optional[Achievement]:
+    """Desbloquea directamente el logro 'backup_used' (Fase 37), sin pasar
+    por check_and_unlock()/SessionStats -- se llama desde
+    ui/profile_select.py justo tras exportar o importar una copia de
+    seguridad con éxito. Devuelve el Achievement si se acaba de
+    desbloquear ahora mismo, o None si ya lo tenía (para no repetir el
+    aviso) o si no hay perfil."""
+    if profile_id is None:
+        return None
+    if store.unlock_achievement(profile_id, "backup_used"):
+        return BY_ID["backup_used"]
+    return None
 
 
 def check_and_unlock(player: "Player", profile_id, store: "ProfileStore") -> list[Achievement]:

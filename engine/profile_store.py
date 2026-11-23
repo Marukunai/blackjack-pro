@@ -60,6 +60,9 @@ class ProfileStore:
                 best_streak       INTEGER NOT NULL DEFAULT 0,
                 worst_streak      INTEGER NOT NULL DEFAULT 0,
                 hands_split       INTEGER NOT NULL DEFAULT 0,
+                lucky_ladies_wins INTEGER NOT NULL DEFAULT 0,
+                royal_match_wins  INTEGER NOT NULL DEFAULT 0,
+                hands_vs_bot      INTEGER NOT NULL DEFAULT 0,
                 created_at        REAL NOT NULL,
                 last_played_at    REAL NOT NULL
             );
@@ -101,6 +104,15 @@ class ProfileStore:
                 "ALTER TABLE profiles ADD COLUMN hands_split INTEGER NOT NULL DEFAULT 0"
             )
             self._conn.commit()
+
+        # Fase 37: contadores para los logros nuevos (apuestas laterales
+        # Lucky Ladies/Royal Match, manos contra algún bot).
+        for col in ("lucky_ladies_wins", "royal_match_wins", "hands_vs_bot"):
+            if col not in cols:
+                self._conn.execute(
+                    f"ALTER TABLE profiles ADD COLUMN {col} INTEGER NOT NULL DEFAULT 0"
+                )
+                self._conn.commit()
 
         hh_cols = {row[1] for row in self._conn.execute("PRAGMA table_info(hand_history)")}
         if "replay_data" not in hh_cols:
@@ -243,6 +255,22 @@ class ProfileStore:
         ).fetchall()
         return [dict(r) for r in rows]
 
+    def import_hand_record(self, profile_id: int, played_at: float, preset_name: str,
+                            bet: float, result: str, net: float, chips_after: float,
+                            replay_data: Optional[str] = None) -> None:
+        """Como log_hand(), pero conservando el `played_at` ORIGINAL en
+        vez de usar la hora actual -- usado al restaurar una copia de
+        seguridad de perfil (Fase 32: engine/profile_backup.py), para
+        que la evolución de fichas y el historial sigan en el orden y
+        las fechas reales en que se jugó cada mano."""
+        self._conn.execute(
+            """INSERT INTO hand_history
+               (profile_id, played_at, preset_name, bet, result, net, chips_after, replay_data)
+               VALUES (?,?,?,?,?,?,?,?)""",
+            (profile_id, played_at, preset_name, bet, result, net, chips_after, replay_data),
+        )
+        self._conn.commit()
+
     def get_all_history(self, profile_id: int) -> list[dict]:
         """Todo el historial de un perfil, sin paginar y en orden
         cronológico ascendente (a diferencia de get_history, pensado para
@@ -284,6 +312,16 @@ class ProfileStore:
         ).fetchall()
         return {r[0] for r in rows}
 
+    def get_achievements_detail(self, profile_id: int) -> list[dict]:
+        """Como get_unlocked_achievement_ids(), pero con la fecha de
+        desbloqueo de cada uno -- usado por la exportación de la copia
+        de seguridad (Fase 32), que sí necesita conservar esa fecha."""
+        rows = self._conn.execute(
+            "SELECT achievement_id, unlocked_at FROM achievements WHERE profile_id = ?",
+            (profile_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
     def unlock_achievement(self, profile_id: int, achievement_id: str) -> bool:
         """Registra un logro como desbloqueado. Devuelve True si es la
         primera vez (se acaba de insertar), False si ya lo tenía."""
@@ -294,6 +332,17 @@ class ProfileStore:
         )
         self._conn.commit()
         return cur.rowcount > 0
+
+    def import_achievement(self, profile_id: int, achievement_id: str, unlocked_at: float) -> None:
+        """Como unlock_achievement(), pero conservando la fecha ORIGINAL
+        de desbloqueo -- usado al restaurar una copia de seguridad de
+        perfil (Fase 32)."""
+        self._conn.execute(
+            """INSERT OR IGNORE INTO achievements (profile_id, achievement_id, unlocked_at)
+               VALUES (?, ?, ?)""",
+            (profile_id, achievement_id, unlocked_at),
+        )
+        self._conn.commit()
 
     def close(self) -> None:
         self._conn.close()

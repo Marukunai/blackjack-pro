@@ -33,8 +33,8 @@ class Table:
     def _ensure(self) -> None:
         if self._bg is not None:
             return
-        self._font_label = pygame.font.SysFont(None, 22, bold=True)
-        self._font_rules = pygame.font.SysFont(None, 17)
+        self._font_label = pygame.font.SysFont(None, cfg.scaled_font_size(22), bold=True)
+        self._font_rules = pygame.font.SysFont(None, cfg.scaled_font_size(17))
         self._bg = self._build_bg()
 
     def invalidate(self) -> None:
@@ -118,7 +118,7 @@ class Table:
 
     def _draw_logo(self, surf: pygame.Surface) -> None:
         """Texto central decorativo de la mesa."""
-        font = pygame.font.SysFont(None, 28, bold=True)
+        font = pygame.font.SysFont(None, cfg.scaled_font_size(28), bold=True)
         text = font.render("BLACKJACK  PAYS  3 : 2", True, cfg.COLOR_GOLD)
         x = self.sw // 2 - text.get_width() // 2
         y = self.divider_y - text.get_height() - 8
@@ -127,7 +127,7 @@ class Table:
         surf.blit(shadow, (x+1, y+1))
         surf.blit(text, (x, y))
 
-        font2 = pygame.font.SysFont(None, 17)
+        font2 = pygame.font.SysFont(None, cfg.scaled_font_size(17))
         sub = font2.render("DEALER MUST STAND ON ALL 17s", True,
                            tuple(min(255, c + 40) for c in cfg.COLOR_FELT_LIGHT))
         surf.blit(sub, (self.sw//2 - sub.get_width()//2, y + text.get_height() + 2))

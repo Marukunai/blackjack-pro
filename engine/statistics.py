@@ -87,6 +87,9 @@ class StatisticsManager:
             "best_streak": s.best_streak,
             "worst_streak": s.worst_streak,
             "hands_split": s.hands_split,
+            "lucky_ladies_wins": s.lucky_ladies_wins,
+            "royal_match_wins": s.royal_match_wins,
+            "hands_vs_bot": s.hands_vs_bot,
         })
 
     def load(self) -> bool:
@@ -114,6 +117,9 @@ class StatisticsManager:
         s.best_streak       = data.get("best_streak", 0)
         s.worst_streak      = data.get("worst_streak", 0)
         s.hands_split       = data.get("hands_split", 0)
+        s.lucky_ladies_wins = data.get("lucky_ladies_wins", 0)
+        s.royal_match_wins  = data.get("royal_match_wins", 0)
+        s.hands_vs_bot      = data.get("hands_vs_bot", 0)
         return True
 
     # ------------------------------------------------------------------

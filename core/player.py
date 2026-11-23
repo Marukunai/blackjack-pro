@@ -19,6 +19,20 @@ class Player:
         self.name = name
         self.chips = chips
 
+        # Fase 33: si es True, este asiento lo juega la IA (estrategia
+        # básica de ai/basic_strategy.py) en vez de una persona -- ver
+        # GameEngine.__init__ (se fija a partir del dict de asiento) y
+        # ui/renderer.py (quien de verdad ejecuta sus decisiones, con
+        # pausa, reutilizando los mismos métodos que un clic humano).
+        self.is_bot: bool = False
+
+        # Fase 38: "personalidad" de juego de este asiento cuando es_bot
+        # es True ("perfect"/"conservative"/"aggressive") -- ver
+        # ai/basic_strategy.py::apply_personality(). Se fija igual que
+        # is_bot, desde GameEngine.__init__ a partir del dict de
+        # asiento; sin efecto en un asiento humano.
+        self.bot_personality: str = "perfect"
+
         # Manos de la ronda actual (puede haber varias tras splits)
         self.hands: list[Hand] = []
         self.active_hand_index: int = 0    # índice de la mano en juego
@@ -30,6 +44,8 @@ class Player:
         # principal y resueltas justo después del reparto inicial.
         self.perfect_pairs_bet: float = 0.0
         self.twentyone_plus_three_bet: float = 0.0
+        self.lucky_ladies_bet: float = 0.0
+        self.royal_match_bet: float = 0.0
 
         # Estadísticas de sesión
         self.stats = SessionStats()
@@ -44,6 +60,8 @@ class Player:
         self.insurance_bet = 0.0
         self.perfect_pairs_bet = 0.0
         self.twentyone_plus_three_bet = 0.0
+        self.lucky_ladies_bet = 0.0
+        self.royal_match_bet = 0.0
         hand = Hand(bet=bet)
         self.hands.append(hand)
         return hand
@@ -92,13 +110,16 @@ class Player:
     # ------------------------------------------------------------------
     # Apuestas laterales
     # ------------------------------------------------------------------
-    def place_side_bets(self, perfect_pairs: float = 0.0, twentyone_plus_three: float = 0.0) -> None:
-        total = perfect_pairs + twentyone_plus_three
+    def place_side_bets(self, perfect_pairs: float = 0.0, twentyone_plus_three: float = 0.0,
+                         lucky_ladies: float = 0.0, royal_match: float = 0.0) -> None:
+        total = perfect_pairs + twentyone_plus_three + lucky_ladies + royal_match
         if total > self.chips:
             raise ValueError("No tienes fichas para las apuestas laterales.")
         self.chips -= total
         self.perfect_pairs_bet = perfect_pairs
         self.twentyone_plus_three_bet = twentyone_plus_three
+        self.lucky_ladies_bet = lucky_ladies
+        self.royal_match_bet = royal_match
 
     # ------------------------------------------------------------------
     # Repr
@@ -132,6 +153,14 @@ class SessionStats:
         self.best_streak: int = 0
         self.worst_streak: int = 0
         self.hands_split: int = 0       # nº de veces que se ha usado split
+
+        # Fase 37: contadores para los logros nuevos ligados a las
+        # apuestas laterales de la Fase 31 y a los oponentes IA de la
+        # Fase 35 -- se persisten igual que el resto de SessionStats (ver
+        # engine/statistics.py).
+        self.lucky_ladies_wins: int = 0
+        self.royal_match_wins: int = 0
+        self.hands_vs_bot: int = 0      # manos jugadas en una mesa con algún bot
 
         # Fase 24: registro mano a mano de ESTA sesión (se pierde al
         # cerrar el juego, a diferencia del hand_history persistido en

@@ -100,10 +100,11 @@ class SideBetPanel:
     fieltro justo encima de la bandeja de fichas principal."""
 
     def __init__(self, sw: int, sh: int, perfect_pairs_allowed: bool,
-                 twentyone_plus_three_allowed: bool) -> None:
+                 twentyone_plus_three_allowed: bool, lucky_ladies_allowed: bool = False,
+                 royal_match_allowed: bool = False) -> None:
         self.sw, self.sh = sw, sh
-        self._font = pygame.font.SysFont(None, 20, bold=True)
-        self._font_small = pygame.font.SysFont(None, 16)
+        self._font = pygame.font.SysFont(None, cfg.scaled_font_size(20), bold=True)
+        self._font_small = pygame.font.SysFont(None, cfg.scaled_font_size(16))
 
         self.steppers: list[_SideBetStepper] = []
         kinds = []
@@ -111,6 +112,10 @@ class SideBetPanel:
             kinds.append(("perfect_pairs", i18n.t("sidebets.perfect_pairs_label")))
         if twentyone_plus_three_allowed:
             kinds.append(("21+3", "21+3"))
+        if lucky_ladies_allowed:
+            kinds.append(("lucky_ladies", "Lucky Ladies"))
+        if royal_match_allowed:
+            kinds.append(("royal_match", "Royal Match"))
 
         n = len(kinds)
         total_w = n * BOX_W + max(0, n - 1) * GAP

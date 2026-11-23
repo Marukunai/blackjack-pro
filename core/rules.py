@@ -75,6 +75,8 @@ class Rules:
     # --- Apuestas laterales (side bets) ---
     perfect_pairs_allowed: bool = False        # Parejas Perfectas (2 cartas del jugador)
     twentyone_plus_three_allowed: bool = False # 21+3 (2 del jugador + carta visible del crupier)
+    lucky_ladies_allowed: bool = False         # Lucky Ladies (2 cartas del jugador suman 20, As=1)
+    royal_match_allowed: bool = False          # Royal Match (2 cartas del jugador del mismo palo)
     side_bet_max: float = 100.0                # tope propio, independiente de max_bet
 
     # ------------------------------------------------------------------

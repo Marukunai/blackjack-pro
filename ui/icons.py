@@ -197,3 +197,67 @@ def bars_icon(surf: pygame.Surface, cx: float, cy: float, size: float, color: tu
         rect = pygame.Rect(int(x), int(base_y - h), max(1, int(bar_w)), int(h))
         pygame.draw.rect(surf, color, rect, border_radius=1)
         x += bar_w + gap
+
+
+def _tray_arrow(surf: pygame.Surface, cx: float, cy: float, size: float, color: tuple,
+                 width: int, pointing_down: bool) -> None:
+    """Base compartida de download_icon/upload_icon (Fase 32, copia de
+    seguridad de perfil): una bandeja/tray en la base y una flecha
+    vertical, hacia dentro (descargar/exportar) o hacia fuera
+    (importar/restaurar), centrado en (cx, cy)."""
+    cx, cy = float(cx), float(cy)
+    tray_w = size * 1.3
+    tray_y = cy + size * 0.55
+    pygame.draw.line(surf, color, (cx - tray_w / 2, tray_y), (cx + tray_w / 2, tray_y), width)
+    pygame.draw.line(surf, color, (cx - tray_w / 2, tray_y), (cx - tray_w / 2, tray_y - size * 0.3), width)
+    pygame.draw.line(surf, color, (cx + tray_w / 2, tray_y), (cx + tray_w / 2, tray_y - size * 0.3), width)
+
+    shaft_top = cy - size * 0.75
+    shaft_bottom = cy + size * 0.2
+    if pointing_down:
+        pygame.draw.line(surf, color, (cx, shaft_top), (cx, shaft_bottom), width)
+        head_y, head_dir = shaft_bottom, 1
+    else:
+        pygame.draw.line(surf, color, (cx, shaft_bottom), (cx, shaft_top), width)
+        head_y, head_dir = shaft_top, -1
+    head = size * 0.32
+    pygame.draw.line(surf, color, (cx, head_y), (cx - head, head_y - head * head_dir), width)
+    pygame.draw.line(surf, color, (cx, head_y), (cx + head, head_y - head * head_dir), width)
+
+
+def download_icon(surf: pygame.Surface, cx: float, cy: float, size: float, color: tuple,
+                   width: int = 2) -> None:
+    """Icono de exportar/descargar (copia de seguridad de perfil, Fase
+    32): flecha hacia una bandeja."""
+    _tray_arrow(surf, cx, cy, size, color, width, pointing_down=True)
+
+
+def upload_icon(surf: pygame.Surface, cx: float, cy: float, size: float, color: tuple,
+                 width: int = 2) -> None:
+    """Icono de importar/restaurar (copia de seguridad de perfil, Fase
+    32): flecha saliendo de una bandeja."""
+    _tray_arrow(surf, cx, cy, size, color, width, pointing_down=False)
+
+
+def book_icon(surf: pygame.Surface, cx: float, cy: float, size: float, color: tuple,
+              width: int = 2) -> None:
+    """Icono de libro abierto (tutorial / cómo jugar, Fase 36): dos
+    páginas que se abren desde un lomo central, cada una con un par de
+    líneas de "texto". Centrado en (cx, cy)."""
+    cx, cy = float(cx), float(cy)
+    half_w = size * 0.9
+    top_y = cy - size * 0.55
+    bot_y = cy + size * 0.55
+    dip = size * 0.16
+    left_pts = [(cx - half_w, top_y + dip * 0.3), (cx, top_y + dip),
+                (cx, bot_y - dip * 0.2), (cx - half_w, bot_y - dip * 0.5)]
+    right_pts = [(cx + half_w, top_y + dip * 0.3), (cx, top_y + dip),
+                 (cx, bot_y - dip * 0.2), (cx + half_w, bot_y - dip * 0.5)]
+    pygame.draw.lines(surf, color, False, left_pts, width)
+    pygame.draw.lines(surf, color, False, right_pts, width)
+    pygame.draw.line(surf, color, (cx, top_y + dip), (cx, bot_y - dip * 0.2), width)
+    thin = max(1, width - 1)
+    for dy in (0.0, size * 0.32):
+        y = cy - size * 0.05 + dy
+        pygame.draw.line(surf, color, (cx - half_w * 0.62, y), (cx - half_w * 0.15, y), thin)
+        pygame.draw.line(surf, color, (cx + half_w * 0.15, y), (cx + half_w * 0.62, y), thin)

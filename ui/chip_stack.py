@@ -37,7 +37,7 @@ class Chip:
 
     def _ensure_font(self) -> None:
         if self._font is None:
-            self._font = pygame.font.SysFont(None, 17, bold=True)
+            self._font = pygame.font.SysFont(None, cfg.scaled_font_size(17), bold=True)
 
     def handle_event(self, event: pygame.event.Event) -> bool:
         if event.type == pygame.MOUSEMOTION:
@@ -166,7 +166,7 @@ class BetStack:
             self._draw_flying_chips(surf)
 
     def _draw_bet_chips(self, surf: pygame.Surface) -> None:
-        font = pygame.font.SysFont(None, 15, bold=True)
+        font = pygame.font.SysFont(None, cfg.scaled_font_size(15), bold=True)
         base_r = 20
         for i, c in enumerate(self._chips):
             value, bg, tc = c["value"], c["bg"], c["tc"]
@@ -192,13 +192,13 @@ class BetStack:
                 surf.blit(t_surf, (cx - t_surf.get_width()//2, cy - t_surf.get_height()//2))
 
         # Total encima
-        tf = pygame.font.SysFont(None, 18, bold=True)
+        tf = pygame.font.SysFont(None, cfg.scaled_font_size(18), bold=True)
         top_y = self.y - len(self._chips) * 5 - base_r - 8
         ts = tf.render(f"${self.total}", True, cfg.COLOR_GOLD)
         surf.blit(ts, (self.x - ts.get_width()//2, top_y))
 
     def _draw_flying_chips(self, surf: pygame.Surface) -> None:
-        font = pygame.font.SysFont(None, 15, bold=True)
+        font = pygame.font.SysFont(None, cfg.scaled_font_size(15), bold=True)
         base_r = 20
         fade_start = 0.6   # a partir de este % de progreso, la ficha se desvanece/encoge
         for f in self._flying:
@@ -306,7 +306,7 @@ class ChipTray:
     def draw(self, surf: pygame.Surface, current_bet: int = 0,
              min_bet: int = 5, max_bet: int = 1000, chips: int = 1000) -> None:
         if self._font is None:
-            self._font = pygame.font.SysFont(None, 20, bold=True)
+            self._font = pygame.font.SysFont(None, cfg.scaled_font_size(20), bold=True)
 
         # Pila visual de fichas en la zona de apuesta
         self._bet_stack.draw(surf)
@@ -319,7 +319,7 @@ class ChipTray:
 
         # Hint click derecho
         if current_bet > 0 and self._enabled:
-            hint_font = pygame.font.SysFont(None, 16)
+            hint_font = pygame.font.SysFont(None, cfg.scaled_font_size(16))
             hint = hint_font.render(i18n.t("chipstack.undo_hint"), True, (90, 90, 90))
             y = self._chips[0].center[1] - CHIP_R - 22
             surf.blit(hint, (self._sw//2 - hint.get_width()//2, y))

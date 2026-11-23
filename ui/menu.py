@@ -10,6 +10,7 @@ from config import i18n
 from config.rules_presets import PRESETS, get_preset, vegas_strip
 from core.rules import Rules, DealerRule, BlackjackPayout, DoubleRule, SurrenderRule
 from engine.challenges import Challenge
+from engine.tournament import Tournament
 from ui import icons
 from ui.hand_history import HandHistoryScreen
 
@@ -95,11 +96,19 @@ class MainMenu:
         # aparte). None mientras no se haya elegido ninguno.
         self._chosen_challenge: Optional[Challenge] = None
 
+        # Torneo elegido en TournamentSelect (Fase 39), si el jugador
+        # entra ahí y confirma uno -- mismo patrón que _chosen_challenge
+        # (cierra el menú al instante, sin pasar por JUGAR aparte). A
+        # diferencia de un Desafío, un Torneo SÍ tiene sentido con toda
+        # la mesa sentada (humanos + bots), así que su botón no se oculta
+        # en multijugador -- ver _challenges_rect más abajo.
+        self._chosen_tournament: Optional[Tournament] = None
+
         # Fuentes
-        self._font_title  = pygame.font.SysFont(None, 64, bold=True)
-        self._font_sub    = pygame.font.SysFont(None, 28, bold=True)
-        self._font_body   = pygame.font.SysFont(None, 22)
-        self._font_small  = pygame.font.SysFont(None, 18)
+        self._font_title  = pygame.font.SysFont(None, cfg.scaled_font_size(64), bold=True)
+        self._font_sub    = pygame.font.SysFont(None, cfg.scaled_font_size(28), bold=True)
+        self._font_body   = pygame.font.SysFont(None, cfg.scaled_font_size(22))
+        self._font_small  = pygame.font.SysFont(None, cfg.scaled_font_size(18))
 
         # Estado
         self._preset_idx  = 0
@@ -127,6 +136,14 @@ class MainMenu:
         self._challenges_rect = pygame.Rect(20, 60, 150, 32)
         self._challenges_hover = False
 
+        # Botón "Torneo" (Fase 39), justo debajo de Desafíos -- siempre
+        # visible (a diferencia de Desafíos): un Torneo tiene más
+        # sentido cuantos más asientos haya a la mesa, pero funciona
+        # igual de bien en solitario (clasificación de uno solo), así
+        # que no hay motivo para ocultarlo nunca.
+        self._tournament_rect = pygame.Rect(20, 100, 150, 32)
+        self._tournament_hover = False
+
         # Botón "Ajustes" (esquina superior derecha, simétrico al de
         # Historial) -- temas visuales y audio, aplicados/persistidos al
         # instante desde ui/settings_screen.py, sin salir del menú.
@@ -140,6 +157,12 @@ class MainMenu:
         # fichas ni resultado que dependa de con quién se juegue).
         self._counting_rect = pygame.Rect(self.sw - 170, 60, 150, 32)
         self._counting_hover = False
+
+        # Botón "Cómo jugar" (Fase 36), justo debajo de Conteo -- siempre
+        # visible, igual que Ajustes/Conteo: es un tutorial de las reglas,
+        # no depende de perfiles ni de cuántos jugadores haya sentados.
+        self._tutorial_rect = pygame.Rect(self.sw - 170, 100, 150, 32)
+        self._tutorial_hover = False
 
         # Animación de fondo
         self._anim_offset = 0.0
@@ -173,14 +196,16 @@ class MainMenu:
             self._preset_items.append(item)
 
     # ------------------------------------------------------------------
-    def run(self) -> tuple[str, Optional[Rules], Optional[Challenge]]:
-        """Bucle bloqueante. Devuelve (preset_name, custom_rules, challenge).
-        En el caso normal challenge es None; si el jugador eligió y
-        confirmó un Desafío (Fase 25), preset_name/custom_rules no
-        importan (se ignoran) y challenge trae el Challenge elegido. Si
-        eligió y confirmó "Personalizado...", preset_name vale
-        "Personalizado" y custom_rules trae el objeto Rules construido a
-        mano en RulesEditor."""
+    def run(self) -> tuple[str, Optional[Rules], Optional[Challenge], Optional[Tournament]]:
+        """Bucle bloqueante. Devuelve (preset_name, custom_rules, challenge,
+        tournament). En el caso normal challenge y tournament son None; si
+        el jugador eligió y confirmó un Desafío (Fase 25) o un Torneo
+        (Fase 39) -- mutuamente excluyentes, nunca los dos a la vez --
+        preset_name/custom_rules no importan (se ignoran) y el campo
+        correspondiente trae el elegido. Si eligió y confirmó
+        "Personalizado...", preset_name vale "Personalizado" y
+        custom_rules trae el objeto Rules construido a mano en
+        RulesEditor."""
         clock = pygame.time.Clock()
         while not self._done:
             dt = clock.tick(60)
@@ -196,16 +221,25 @@ class MainMenu:
             pygame.display.flip()
 
         if self._chosen_challenge is not None:
-            return "", None, self._chosen_challenge
+            return "", None, self._chosen_challenge, None
+        if self._chosen_tournament is not None:
+            return "", None, None, self._chosen_tournament
         if self._custom_rules is not None:
-            return "Personalizado", self._custom_rules, None
-        return self._preset_names[self._preset_idx], None, None
+            return "Personalizado", self._custom_rules, None, None
+        return self._preset_names[self._preset_idx], None, None, None
 
     def _show_challenges(self) -> None:
         from ui.challenge_select import ChallengeSelect
         challenge = ChallengeSelect(self.screen).run()
         if challenge is not None:
             self._chosen_challenge = challenge
+            self._done = True
+
+    def _show_tournament(self) -> None:
+        from ui.tournament_select import TournamentSelect
+        tournament = TournamentSelect(self.screen).run()
+        if tournament is not None:
+            self._chosen_tournament = tournament
             self._done = True
 
     def _show_history(self) -> None:
@@ -231,6 +265,10 @@ class MainMenu:
         from ui.counting_trainer import CardCountingTrainer  # import diferido: evita ciclos de import
         CardCountingTrainer(self.screen).run()
 
+    def _show_tutorial(self) -> None:
+        from ui.tutorial_screen import TutorialScreen  # import diferido: evita ciclos de import
+        TutorialScreen(self.screen).run()
+
     def _confirm_selection(self) -> None:
         """Se llama al pulsar Enter o el botón JUGAR. Si el preset
         seleccionado es "Personalizado...", abre RulesEditor en vez de
@@ -255,17 +293,23 @@ class MainMenu:
                 self._show_history()
             elif len(self._seats) <= 1 and self._challenges_rect.collidepoint(event.pos):
                 self._show_challenges()
+            elif self._tournament_rect.collidepoint(event.pos):
+                self._show_tournament()
             elif self._settings_rect.collidepoint(event.pos):
                 self._show_settings()
             elif self._counting_rect.collidepoint(event.pos):
                 self._show_counting()
+            elif self._tutorial_rect.collidepoint(event.pos):
+                self._show_tutorial()
 
         if event.type == pygame.MOUSEMOTION:
             self._start_hover = self._start_rect.collidepoint(event.pos)
             self._history_hover = self._history_rect.collidepoint(event.pos)
             self._challenges_hover = self._challenges_rect.collidepoint(event.pos)
+            self._tournament_hover = self._tournament_rect.collidepoint(event.pos)
             self._settings_hover = self._settings_rect.collidepoint(event.pos)
             self._counting_hover = self._counting_rect.collidepoint(event.pos)
+            self._tutorial_hover = self._tutorial_rect.collidepoint(event.pos)
 
         if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
             self._confirm_selection()
@@ -273,6 +317,8 @@ class MainMenu:
             self._show_history()
         if event.type == pygame.KEYDOWN and event.key == pygame.K_c:
             self._show_counting()
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_t:
+            self._show_tutorial()
 
         # Selección de preset con click o teclado
         for i, item in enumerate(self._preset_items):
@@ -394,6 +440,16 @@ class MainMenu:
             surf.blit(ch_txt, (self._challenges_rect.x + 36,
                                 self._challenges_rect.centery - ch_txt.get_height() // 2))
 
+        # Botón "Torneo" (Fase 39) -- siempre visible (ver comentario en
+        # __init__), justo debajo de Desafíos.
+        tn_col = cfg.COLOR_GOLD if self._tournament_hover else (140, 140, 140)
+        pygame.draw.rect(surf, (20, 15, 0), self._tournament_rect, border_radius=8)
+        pygame.draw.rect(surf, tn_col, self._tournament_rect, 1, border_radius=8)
+        icons.draw_suit(surf, "D", self._tournament_rect.x + 20, self._tournament_rect.centery, 9, tn_col)
+        tn_txt = self._font_small.render(i18n.t("menu.tournament_button"), True, tn_col)
+        surf.blit(tn_txt, (self._tournament_rect.x + 36,
+                            self._tournament_rect.centery - tn_txt.get_height() // 2))
+
         # Botón "Ajustes" (temas visuales, audio) -- siempre visible.
         set_col = cfg.COLOR_GOLD if self._settings_hover else (140, 140, 140)
         pygame.draw.rect(surf, (20, 15, 0), self._settings_rect, border_radius=8)
@@ -412,6 +468,15 @@ class MainMenu:
         cnt_txt = self._font_small.render(i18n.t("menu.counting_button"), True, cnt_col)
         surf.blit(cnt_txt, (self._counting_rect.x + 36,
                              self._counting_rect.centery - cnt_txt.get_height() // 2))
+
+        # Botón "Cómo jugar" (Fase 36) -- siempre visible, bajo Conteo.
+        tut_col = cfg.COLOR_GOLD if self._tutorial_hover else (140, 140, 140)
+        pygame.draw.rect(surf, (20, 15, 0), self._tutorial_rect, border_radius=8)
+        pygame.draw.rect(surf, tut_col, self._tutorial_rect, 1, border_radius=8)
+        icons.book_icon(surf, self._tutorial_rect.x + 20, self._tutorial_rect.centery, 9, tut_col)
+        tut_txt = self._font_small.render(i18n.t("menu.tutorial_button"), True, tut_col)
+        surf.blit(tut_txt, (self._tutorial_rect.x + 36,
+                             self._tutorial_rect.centery - tut_txt.get_height() // 2))
 
     def _draw_bg_pattern(self, surf: pygame.Surface) -> None:
         """Patrón de rombos animado en el fondo."""
@@ -562,6 +627,8 @@ class RulesEditor:
         ("original_bets_only", "menu.field.original_bets_only", [True, False], lambda v: _fmt_yn(v)),
         ("perfect_pairs_allowed", "menu.field.perfect_pairs_allowed", [True, False], lambda v: _fmt_yn(v)),
         ("twentyone_plus_three_allowed", "menu.field.twentyone_plus_three_allowed", [True, False], lambda v: _fmt_yn(v)),
+        ("lucky_ladies_allowed", "menu.field.lucky_ladies_allowed", [True, False], lambda v: _fmt_yn(v)),
+        ("royal_match_allowed", "menu.field.royal_match_allowed", [True, False], lambda v: _fmt_yn(v)),
         ("side_bet_max", "menu.field.side_bet_max",
          [10.0, 25.0, 50.0, 100.0, 250.0, 500.0], lambda v: f"${v:.0f}"),
     ]
@@ -573,9 +640,9 @@ class RulesEditor:
         self._confirmed = False
         self._row_idx = 0
 
-        self._font_title = pygame.font.SysFont(None, 40, bold=True)
-        self._font_row   = pygame.font.SysFont(None, 20)
-        self._font_small = pygame.font.SysFont(None, 18)
+        self._font_title = pygame.font.SysFont(None, cfg.scaled_font_size(40), bold=True)
+        self._font_row   = pygame.font.SysFont(None, cfg.scaled_font_size(20))
+        self._font_small = pygame.font.SysFont(None, cfg.scaled_font_size(18))
 
         seed = seed or vegas_strip()
         self._rows: list[_RuleRow] = []
